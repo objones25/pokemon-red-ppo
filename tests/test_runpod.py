@@ -169,3 +169,31 @@ def test_pre_read_already_terminated_is_success_without_delete() -> None:
 def test_pod_id_must_be_url_safe(pod_id: str) -> None:
     with pytest.raises(CheckFailed, match="pod_id"):
         _terminator(Script([_reply(204)], [_reply(404)]), [], pod_id=pod_id)
+
+
+def _proc1(tmp_path: Path, **values: str) -> Path:
+    path = tmp_path / "environ"
+    path.write_bytes(b"\x00".join(f"{key}={value}".encode() for key, value in values.items()))
+    return path
+
+
+def test_api_key_comes_from_the_environment_first(tmp_path):
+    assert own_api_key({"RUNPOD_API_KEY": "shell"}, _proc1(tmp_path, RUNPOD_API_KEY="pod")) == "shell"
+
+
+def test_api_key_falls_back_to_the_pods_own_key(tmp_path):
+    assert own_api_key({}, _proc1(tmp_path, RUNPOD_API_KEY="pod")) == "pod"
+
+
+def test_empty_api_key_counts_as_unset(tmp_path):
+    assert own_api_key({"RUNPOD_API_KEY": ""}, _proc1(tmp_path, RUNPOD_API_KEY="pod")) == "pod"
+
+
+def test_missing_api_key_is_a_clear_error(tmp_path):
+    with pytest.raises(MissingSecret, match="RUNPOD_API_KEY"):
+        own_api_key({}, _proc1(tmp_path, OTHER="x"))
+
+
+def test_unreadable_proc1_is_a_clear_error(tmp_path):
+    with pytest.raises(MissingSecret, match="RUNPOD_API_KEY"):
+        own_api_key({}, tmp_path / "missing")

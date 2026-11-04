@@ -68,15 +68,29 @@ def own_pod_id(environ: Mapping[str, str], proc1_environ: Path = Path("/proc/1/e
     raise OwnPodUnknown(f"{_POD_ID_VAR} is not set in the environment or in {proc1_environ}")
 
 
+def own_api_key(environ: Mapping[str, str], proc1_environ: Path = Path("/proc/1/environ")) -> str:  # nsp: ignore NSP001 every failure raises MissingSecret
+    """The API key from the environment, else the pod-scoped key Runpod gives the container's PID 1."""
+    value = environ.get(_API_KEY_VAR)
+    if value:
+        return value
+    prefix = f"{_API_KEY_VAR}=".encode()
+    try:
+        raw = proc1_environ.read_bytes()
+    except OSError as error:
+        raise MissingSecret(f"{_API_KEY_VAR} is not set and {proc1_environ} is unreadable: {error}") from error
+    for entry in raw.split(b"\x00"):
+        if entry.startswith(prefix) and len(entry) > len(prefix):
+            return entry[len(prefix) :].decode()
+    raise MissingSecret(f"{_API_KEY_VAR} is not set in the environment or in {proc1_environ}")
+
+
 def own_terminator(environ: Mapping[str, str], client: httpx.Client) -> PodTerminator:
     """A ``PodTerminator`` for the pod we run on; ``MissingSecret`` / ``OwnPodUnknown`` when it cannot be built.
 
     The pod id comes from outside the program, so a malformed one is an operating error here rather than
     the constructor's contract violation.
     """
-    api_key = environ.get(_API_KEY_VAR)
-    if not api_key:
-        raise MissingSecret(f"{_API_KEY_VAR} is not set")
+    api_key = own_api_key(environ)
     pod_id = own_pod_id(environ)
     if _POD_ID_PATTERN.fullmatch(pod_id) is None:
         raise OwnPodUnknown(f"malformed pod id {pod_id!r}: expected [A-Za-z0-9_-]+")
