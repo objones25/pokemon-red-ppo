@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import signal
 from functools import partial
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -16,7 +17,7 @@ from pokered.model import ActorCritic
 from pokered.negative_space import CheckFailed, expect
 from pokered.observations import OBSERVATION_SHAPES
 from pokered.runpod import TerminateFailed
-from pokered.train import PodStopping, episode_metrics, holding_sigterm, pick_device, run_guarded, train
+from pokered.train import PodStopping, _run, episode_metrics, holding_sigterm, pick_device, run_guarded, train
 from pokered.vec import StepResult
 
 EPISODE_LENGTH = 6
@@ -313,6 +314,29 @@ def test_sigterm_before_any_update_saves_nothing(tmp_path):
     with pytest.raises(PodStopping):
         train(config, ActorCritic(), StoppingVec(stop_at=2), ListLogger(), store, torch.device("cpu"))
     assert store.load_latest() is None
+
+
+class ClosableVec(FakeVec):
+    instances: ClassVar[list[ClosableVec]] = []
+
+    def __init__(self, *_args, **_kwargs) -> None:
+        super().__init__()
+        self.closed = False
+        ClosableVec.instances.append(self)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_a_logger_that_cannot_start_still_closes_the_workers(tmp_path, monkeypatch):
+    def no_logger(*_args, **_kwargs):
+        raise ValueError("no W&B key")
+
+    monkeypatch.setattr("pokered.train.VecEnv", ClosableVec)
+    monkeypatch.setattr("pokered.train.WandbLogger", no_logger)
+    with pytest.raises(ValueError, match="no W&B key"):
+        _run(_config(tmp_path))
+    assert ClosableVec.instances[-1].closed
 
 
 def test_episode_metrics_of_nothing_is_empty():

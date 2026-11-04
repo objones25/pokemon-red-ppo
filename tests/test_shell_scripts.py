@@ -190,3 +190,23 @@ def test_train_uses_node_zero_without_nvidia_smi(pod, tmp_path):
 
 def test_train_uses_node_zero_when_the_bus_id_has_no_sysfs_entry(pod, tmp_path):
     assert "--numa-node 0 " in _numa_flag(tmp_path, pod, "1", bus_id="00000000:01:00.0")
+
+
+def test_train_logs_offline_when_setup_was_given_no_wandb_key(pod, tmp_path):
+    """Online W&B with no key raises at start-up, and on a pod that exit deletes the pod."""
+    _run(SETUP, pod, stdin="\n\nrunpod-key\n")
+    result = _run(TRAIN, pod)
+    assert "--wandb-mode offline" in (tmp_path / "tool.log").read_text().splitlines()[-1]
+    assert "no WANDB_API_KEY" in result.stderr
+
+
+def test_train_leaves_wandb_mode_alone_when_it_has_a_key(pod, tmp_path):
+    _run(SETUP, pod, stdin=ANSWERS)
+    _run(TRAIN, pod)
+    assert "--wandb-mode" not in (tmp_path / "tool.log").read_text().splitlines()[-1]
+
+
+def test_train_lets_a_caller_choose_wandb_mode_after_the_default(pod, tmp_path):
+    _run(SETUP, pod, stdin="\n\nrunpod-key\n")
+    _run(TRAIN, pod, "--wandb-mode", "disabled")
+    assert (tmp_path / "tool.log").read_text().splitlines()[-1].endswith("--wandb-mode disabled")

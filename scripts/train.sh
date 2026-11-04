@@ -64,6 +64,12 @@ main() {
   set +a
   local workers
   workers=$(worker_count)
+  local wandb_mode=()
+  if [[ -z ${WANDB_API_KEY:-} ]]; then
+    # Online W&B without a key fails at start-up, and that exit would delete the pod. Upload later with `wandb sync`.
+    printf '%s: no WANDB_API_KEY, so W&B logs offline\n' "$SCRIPT_NAME" >&2
+    wandb_mode=(--wandb-mode offline)
+  fi
   exec "$VENV/bin/pokered-train" \
     --env.rom "$ROM" \
     --workers "$workers" \
@@ -74,6 +80,7 @@ main() {
     --terminate-pod-on-exit \
     --run-name "$RUN_NAME" \
     --run-dir "$VOLUME/pokered/runs/$RUN_NAME" \
+    ${wandb_mode[@]+"${wandb_mode[@]}"} \
     "$@"
 }
 

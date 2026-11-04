@@ -227,19 +227,21 @@ def _run(config: TrainConfig) -> None:  # nsp: ignore NSP001 wiring; train and t
     )
     if plan is not None:
         pin_process(plan.main)  # After starting the workers, which pin themselves.
-    logger = WandbLogger(
-        config.run_name,
-        project=config.wandb_project,
-        config=config_dict(config),
-        mode=config.wandb_mode,
-        directory=config.run_dir,
-    )
+    logger = None
     try:
+        logger = WandbLogger(
+            config.run_name,
+            project=config.wandb_project,
+            config=config_dict(config),
+            mode=config.wandb_mode,
+            directory=config.run_dir,
+        )
         envs.reset()
         store = CheckpointStore(config.run_dir / "checkpoints", keep=config.keep_checkpoints)
         train(config, ActorCritic(), envs, logger, store, device)
     finally:
-        logger.finish()
+        if logger is not None:
+            logger.finish()
         envs.close()
 
 
