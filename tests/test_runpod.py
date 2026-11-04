@@ -13,7 +13,15 @@ import httpx
 import pytest
 
 from pokered.negative_space import CheckFailed
-from pokered.runpod import RUNPOD_REST_BASE, OwnPodUnknown, PodTerminator, TerminateFailed, own_pod_id
+from pokered.runpod import (
+    RUNPOD_REST_BASE,
+    MissingSecret,
+    OwnPodUnknown,
+    PodTerminator,
+    TerminateFailed,
+    own_api_key,
+    own_pod_id,
+)
 
 POD = "abc123podid"
 KEY = "rpa_secret_key_value"
