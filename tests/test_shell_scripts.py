@@ -141,6 +141,29 @@ def test_train_falls_back_to_cpu_count_without_a_quota(pod, tmp_path):
     assert f"--workers {expected} " in _workers_flag(tmp_path, pod, "max 100000")
 
 
+def _workers_with_v1_quota(tmp_path, pod, quota: str, period: str = "100000") -> str:
+    """A cgroup v1 host, as Runpod's CA-MTL-3 A100 PCIe was: no cpu.max, and the limit in two other files."""
+    (tmp_path / "quota").write_text(f"{quota}\\n")
+    (tmp_path / "period").write_text(f"{period}\\n")
+    _run(SETUP, pod, stdin=ANSWERS)
+    _run(TRAIN, {
+        **pod,
+        "POKERED_CPU_MAX_FILE": str(tmp_path / "missing"),
+        "POKERED_CFS_QUOTA_FILE": str(tmp_path / "quota"),
+        "POKERED_CFS_PERIOD_FILE": str(tmp_path / "period"),
+    })  # fmt: skip
+    return (tmp_path / "tool.log").read_text().splitlines()[-1]
+
+
+def test_train_reads_the_cgroup_v1_limit_when_there_is_no_cpu_max(pod, tmp_path):
+    assert "--workers 25 " in _workers_with_v1_quota(tmp_path, pod, "2635000")
+
+
+def test_train_falls_back_to_cpu_count_when_the_v1_quota_is_unlimited(pod, tmp_path):
+    expected = max((os.cpu_count() or 2) - 1, 1)
+    assert f"--workers {expected} " in _workers_with_v1_quota(tmp_path, pod, "-1")
+
+
 def _numa_flag(tmp_path, pod, node: str, bus_id: str = "00000000:81:00.0") -> str:
     _fake_tool(tmp_path / "bin", "nvidia-smi", f'printf "%s\\n" "{bus_id}"')
     sysfs = tmp_path / "pci"

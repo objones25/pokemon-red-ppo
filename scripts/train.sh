@@ -6,7 +6,8 @@
 # Usage: scripts/train.sh [pokered-train options, which override these defaults]
 # Requires: bash 3.2+, awk; run scripts/setup.sh on this pod first.
 # Exit status: that of pokered-train.
-# Test-only overrides: POKERED_VENV, POKERED_ENV_FILE, POKERED_CPU_MAX_FILE, POKERED_PCI_SYSFS.
+# Test-only overrides: POKERED_VENV, POKERED_ENV_FILE, POKERED_CPU_MAX_FILE, POKERED_CFS_QUOTA_FILE,
+# POKERED_CFS_PERIOD_FILE, POKERED_PCI_SYSFS.
 # bash-target: 3.2
 
 set -Eeuo pipefail
@@ -17,6 +18,8 @@ readonly VENV=${POKERED_VENV:-/opt/venv}
 readonly ROM=${POKERED_ROM:-$VOLUME/rom/Pokemon Red.gb}
 readonly RUN_NAME=${POKERED_RUN_NAME:-main}
 readonly CPU_MAX_FILE=${POKERED_CPU_MAX_FILE:-/sys/fs/cgroup/cpu.max}
+readonly CFS_QUOTA_FILE=${POKERED_CFS_QUOTA_FILE:-/sys/fs/cgroup/cpu/cpu.cfs_quota_us}
+readonly CFS_PERIOD_FILE=${POKERED_CFS_PERIOD_FILE:-/sys/fs/cgroup/cpu/cpu.cfs_period_us}
 readonly PCI_SYSFS=${POKERED_PCI_SYSFS:-/sys/bus/pci/devices}
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 readonly REPO
@@ -30,8 +33,10 @@ die() {
 # Usable CPUs minus one for the main process, and never below one.
 worker_count() {
   local cpus=""
-  if [[ -r $CPU_MAX_FILE ]]; then
+  if [[ -r $CPU_MAX_FILE ]]; then # cgroup v2
     cpus=$(awk '$1 != "max" { print int($1 / $2) }' "$CPU_MAX_FILE")
+  elif [[ -r $CFS_QUOTA_FILE && -r $CFS_PERIOD_FILE ]]; then # cgroup v1; a quota of -1 means no limit
+    cpus=$(awk 'NR == FNR { quota = $1; next } quota > 0 { print int(quota / $1) }' "$CFS_QUOTA_FILE" "$CFS_PERIOD_FILE")
   fi
   if [[ -z $cpus ]]; then
     cpus=$(getconf _NPROCESSORS_ONLN)
