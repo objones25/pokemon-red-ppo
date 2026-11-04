@@ -1,0 +1,14 @@
+--- per config, clean=bg<=1.0; ms per lockstep and share
+S10           all=[1469, 1484, 1444] clean_mean=1484 wall/lock=6.74ms | emu=32.4% obs+rew=0.6% sync/ipc=14.6% env=47.6% | rollout-policy=39.9% update=12.4% gae=0.1% | per-sample ms: emu=0.218 sync=0.099 pol=0.269 upd=0.084 tot=0.674
+S12           all=[1529, 1585] clean_mean=1557 wall/lock=7.71ms | emu=32.4% obs+rew=0.6% sync/ipc=17.1% env=50.0% | rollout-policy=36.7% update=13.3% gae=0.1% | per-sample ms: emu=0.208 sync=0.109 pol=0.236 upd=0.085 tot=0.642
+S10dict2048   all=[1235, 1268, 1198] clean_mean=1268 wall/lock=7.89ms | emu=27.6% obs+rew=0.6% sync/ipc=13.8% env=41.9% | rollout-policy=44.6% update=13.4% gae=0.0% | per-sample ms: emu=0.218 sync=0.108 pol=0.352 upd=0.106 tot=0.789
+C12x1         all=[1750, 1728] clean_mean=1739 wall/lock=6.90ms | emu=31.2% obs+rew=0.6% sync/ipc=16.8% env=48.7% | rollout-policy=37.7% update=13.5% gae=0.1% | per-sample ms: emu=0.179 sync=0.097 pol=0.217 upd=0.078 tot=0.575
+C12x8         all=[2667, 2668] clean_mean=2667 wall/lock=35.99ms | emu=46.4% obs+rew=1.0% sync/ipc=15.5% env=63.0% | rollout-policy=16.2% update=20.6% gae=0.2% | per-sample ms: emu=0.174 sync=0.058 pol=0.061 upd=0.077 tot=0.375
+C12x8F        all=[4860, 4703] clean_mean=4782 wall/lock=20.08ms | emu=28.9% obs+rew=1.7% sync/ipc=12.9% env=43.6% | rollout-policy=19.6% update=36.6% gae=0.3% | per-sample ms: emu=0.060 sync=0.027 pol=0.041 upd=0.077 tot=0.209
+S10F          all=[2067, 2017] clean_mean=2042 wall/lock=4.90ms | emu=17.9% obs+rew=1.0% sync/ipc=16.9% env=35.8% | rollout-policy=47.1% update=17.1% gae=0.1% | per-sample ms: emu=0.088 sync=0.083 pol=0.231 upd=0.084 tot=0.490
+C12x1cpuinf   all=[2230, 2257] clean_mean=2243 wall/lock=5.35ms | emu=41.4% obs+rew=0.8% sync/ipc=20.9% env=63.2% | rollout-policy=19.1% update=17.6% gae=0.1% | per-sample ms: emu=0.184 sync=0.093 pol=0.085 upd=0.078 tot=0.446
+C12x8cpuinf   all=[1951, 1954] clean_mean=1952 wall/lock=49.17ms | emu=33.6% obs+rew=0.8% sync/ipc=10.3% env=44.7% | rollout-policy=39.2% update=15.4% gae=0.6% | per-sample ms: emu=0.172 sync=0.053 pol=0.201 upd=0.079 tot=0.512
+C12x8convcpu  all=[2657, 2582] clean_mean=2657 wall/lock=36.13ms | emu=46.6% obs+rew=1.0% sync/ipc=14.3% env=62.0% | rollout-policy=17.4% update=20.5% gae=0.2% | per-sample ms: emu=0.175 sync=0.054 pol=0.065 upd=0.077 tot=0.376
+C12x1F        all=[2516, 2420] clean_mean=nan wall/lock=4.86ms | emu=18.2% obs+rew=1.0% sync/ipc=13.9% env=33.2% | rollout-policy=46.4% update=20.3% gae=0.1% | per-sample ms: emu=0.074 sync=0.057 pol=0.188 upd=0.082 tot=0.405
+S10cpu        all=[651, 685] clean_mean=668 wall/lock=14.98ms | emu=16.3% obs+rew=0.3% sync/ipc=6.9% env=23.5% | rollout-policy=10.0% update=66.4% gae=0.0% | per-sample ms: emu=0.244 sync=0.104 pol=0.150 upd=0.995 tot=1.498
+bg range 0.45448817001655767 1.2510832595140926 flagged 7 of 26

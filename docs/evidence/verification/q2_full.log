@@ -1,0 +1,66 @@
+seq sha fee35f74be ['a', 'b', 'b', 'b', 'b', 'down', 'down', 'right', 'b', 'a', 'down', 'start']
+== has_pokedex converted len 178108 0.01998424530029297
+ t 7.081738233566284
+has_pokedex: reused_old#1 vs fresh_old DIVERGE step 1 bytes 2 final 880 [('0xffd3', 'hRandomAdd+0', 79, 231), ('0xffd4', 'hRandomSub+0', 40, 142)] game [{'map': 0, 'y': 12, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}, {'map': 0, 'y': 7, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}]
+has_pokedex: reused_old#2 vs reused_old#1 (same emu repeated) IDENTICAL
+has_pokedex: reused_old#2 vs fresh_old DIVERGE step 1 bytes 2 final 880 [('0xffd3', 'hRandomAdd+0', 79, 231), ('0xffd4', 'hRandomSub+0', 40, 142)] game [{'map': 0, 'y': 12, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}, {'map': 0, 'y': 7, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}]
+has_pokedex: fresh_old#2 vs fresh_old IDENTICAL
+has_pokedex: fresh_conv vs fresh_old IDENTICAL
+has_pokedex: reused_conv#1 vs fresh_conv IDENTICAL
+has_pokedex: reused_conv#2 vs reused_conv#1 (same emu repeated) IDENTICAL
+has_pokedex: old_loaded_in_emu_after_conv_runs vs fresh_old DIVERGE step 1 bytes 2 final 880 [('0xffd3', 'hRandomAdd+0', 79, 231), ('0xffd4', 'hRandomSub+0', 40, 142)] game [{'map': 0, 'y': 12, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}, {'map': 0, 'y': 7, 'x': 12, 'party': 1, 'events': 11, 'money': [0, 49, 117]}]
+has_pokedex: conv, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex: conv, rewind to 1500 after reaching end vs uninterrupted IDENTICAL
+has_pokedex: conv, midrun state loaded in fresh emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex: old, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex: conv, save+load every 100 steps vs uninterrupted IDENTICAL
+ t 87.27076721191406
+== init converted len 178108 87.29144597053528
+ t 93.71740221977234
+init: reused_old#1 vs fresh_old DIVERGE step 1 bytes 2 final 8 [('0xffd3', 'hRandomAdd+0', 158, 23), ('0xffd4', 'hRandomSub+0', 23, 157)] game [{'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+init: reused_old#2 vs reused_old#1 (same emu repeated) IDENTICAL
+init: reused_old#2 vs fresh_old DIVERGE step 1 bytes 2 final 8 [('0xffd3', 'hRandomAdd+0', 158, 23), ('0xffd4', 'hRandomSub+0', 23, 157)] game [{'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+init: fresh_old#2 vs fresh_old IDENTICAL
+init: fresh_conv vs fresh_old IDENTICAL
+init: reused_conv#1 vs fresh_conv IDENTICAL
+init: reused_conv#2 vs reused_conv#1 (same emu repeated) IDENTICAL
+init: old_loaded_in_emu_after_conv_runs vs fresh_old DIVERGE step 1 bytes 2 final 8 [('0xffd3', 'hRandomAdd+0', 158, 23), ('0xffd4', 'hRandomSub+0', 23, 157)] game [{'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 0, 'y': 6, 'x': 12, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+init: conv, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+init: conv, rewind to 1500 after reaching end vs uninterrupted IDENTICAL
+init: conv, midrun state loaded in fresh emu @ 1500 vs uninterrupted IDENTICAL
+init: old, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+init: conv, save+load every 100 steps vs uninterrupted IDENTICAL
+ t 167.64836716651917
+== has_pokedex_nballs converted len 178108 167.67062497138977
+ t 175.64283633232117
+has_pokedex_nballs: reused_old#1 vs fresh_old DIVERGE step 1 bytes 2 final 61 [('0xffd3', 'hRandomAdd+0', 22, 175), ('0xffd4', 'hRandomSub+0', 0, 103)] game [{'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}, {'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}]
+has_pokedex_nballs: reused_old#2 vs reused_old#1 (same emu repeated) IDENTICAL
+has_pokedex_nballs: reused_old#2 vs fresh_old DIVERGE step 1 bytes 2 final 61 [('0xffd3', 'hRandomAdd+0', 22, 175), ('0xffd4', 'hRandomSub+0', 0, 103)] game [{'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}, {'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}]
+has_pokedex_nballs: fresh_old#2 vs fresh_old IDENTICAL
+has_pokedex_nballs: fresh_conv vs fresh_old IDENTICAL
+has_pokedex_nballs: reused_conv#1 vs fresh_conv IDENTICAL
+has_pokedex_nballs: reused_conv#2 vs reused_conv#1 (same emu repeated) IDENTICAL
+has_pokedex_nballs: old_loaded_in_emu_after_conv_runs vs fresh_old DIVERGE step 1 bytes 2 final 61 [('0xffd3', 'hRandomAdd+0', 22, 175), ('0xffd4', 'hRandomSub+0', 0, 103)] game [{'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}, {'map': 40, 'y': 3, 'x': 5, 'party': 1, 'events': 11, 'money': [0, 9, 117]}]
+has_pokedex_nballs: conv, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex_nballs: conv, rewind to 1500 after reaching end vs uninterrupted IDENTICAL
+has_pokedex_nballs: conv, midrun state loaded in fresh emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex_nballs: old, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+has_pokedex_nballs: conv, save+load every 100 steps vs uninterrupted IDENTICAL
+ t 264.5586681365967
+== fast_text_start converted len 178108 264.5794541835785
+ t 271.27460408210754
+fast_text_start: reused_old#1 vs fresh_old DIVERGE step 1 bytes 2 final 2 [('0xffd3', 'hRandomAdd+0', 248, 112), ('0xffd4', 'hRandomSub+0', 227, 103)] game [{'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+fast_text_start: reused_old#2 vs reused_old#1 (same emu repeated) IDENTICAL
+fast_text_start: reused_old#2 vs fresh_old DIVERGE step 1 bytes 2 final 2 [('0xffd3', 'hRandomAdd+0', 248, 112), ('0xffd4', 'hRandomSub+0', 227, 103)] game [{'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+fast_text_start: fresh_old#2 vs fresh_old IDENTICAL
+fast_text_start: fresh_conv vs fresh_old IDENTICAL
+fast_text_start: reused_conv#1 vs fresh_conv IDENTICAL
+fast_text_start: reused_conv#2 vs reused_conv#1 (same emu repeated) IDENTICAL
+fast_text_start: old_loaded_in_emu_after_conv_runs vs fresh_old DIVERGE step 1 bytes 2 final 2 [('0xffd3', 'hRandomAdd+0', 248, 112), ('0xffd4', 'hRandomSub+0', 227, 103)] game [{'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}, {'map': 38, 'y': 3, 'x': 7, 'party': 0, 'events': 0, 'money': [0, 48, 0]}]
+fast_text_start: conv, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+fast_text_start: conv, rewind to 1500 after reaching end vs uninterrupted IDENTICAL
+fast_text_start: conv, midrun state loaded in fresh emu @ 1500 vs uninterrupted IDENTICAL
+fast_text_start: old, midrun save+load same emu @ 1500 vs uninterrupted IDENTICAL
+fast_text_start: conv, save+load every 100 steps vs uninterrupted IDENTICAL
+ t 344.0902051925659
+DONE 344.09021830558777

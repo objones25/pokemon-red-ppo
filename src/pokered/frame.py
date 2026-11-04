@@ -1,0 +1,53 @@
+"""One parsed snapshot of game memory: the only game data rewards are allowed to see."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Final
+
+from pokered import ram_map
+from pokered.negative_space import require
+
+EVENT_FLAG_BYTES: Final[int] = ram_map.EVENT_FLAGS_BYTES
+
+
+@dataclass(frozen=True, slots=True)
+class GameFrame:
+    map_id: int
+    x: int
+    y: int
+    in_battle: bool
+    event_flags: bytes
+    badges: int
+    party_levels: tuple[int, ...]
+    party_hp: tuple[float, ...]
+
+    def __post_init__(self) -> None:
+        require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
+        require(len(self.party_levels) == len(self.party_hp), "party levels and hp must have one entry per Pokemon")
+        require(all(0.0 <= hp <= 1.0 for hp in self.party_hp), f"hp fractions out of range: {self.party_hp}")
+        require(0 <= self.badges <= 0xFF, f"badges must fit one byte, got {self.badges}")
+
+
+def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP001 clamped by construction; GameFrame checks the range
+    maximum = ram_map.read_u16(mem, address + ram_map.OFF_MAX_HP)
+    if maximum == 0:
+        return 0.0
+    return min(ram_map.read_u16(mem, address + ram_map.OFF_HP) / maximum, 1.0)
+
+
+def read_frame(mem: ram_map.Memory) -> GameFrame:
+    count = mem[ram_map.PARTY_COUNT]
+    if count > ram_map.MAX_PARTY:
+        raise ValueError(f"party count {count} exceeds {ram_map.MAX_PARTY}")
+    party = [ram_map.PARTY_MONS + ram_map.MON_SIZE * i for i in range(count)]
+    return GameFrame(
+        map_id=mem[ram_map.MAP_ID],
+        x=mem[ram_map.X_POS],
+        y=mem[ram_map.Y_POS],
+        in_battle=mem[ram_map.BATTLE_TYPE] != ram_map.BATTLE_NONE,
+        event_flags=bytes(mem[ram_map.EVENT_FLAGS_START + i] for i in range(EVENT_FLAG_BYTES)),
+        badges=mem[ram_map.BADGES],
+        party_levels=tuple(mem[address + ram_map.OFF_LEVEL] for address in party),
+        party_hp=tuple(_hp_fraction(mem, address) for address in party),
+    )

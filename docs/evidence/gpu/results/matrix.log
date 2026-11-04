@@ -1,0 +1,17 @@
+17:17:57 start lock_only load={ 4.47 3.82 4.09 }
+17:18:32 start nat_k8_a load={ 6.17 4.38 4.29 }
+17:19:26 start imp1_k8_a load={ 9.20 5.56 4.74 }
+17:20:31 start imp4_k8_a load={ 6.29 5.49 4.77 }
+17:22:12 start nat_k1 load={ 3.61 5.00 4.67 }
+17:23:03 start nat_k4 load={ 4.18 4.90 4.65 }
+17:23:51 start nat_k32 load={ 6.15 5.34 4.83 }
+17:24:55 start nat_ep10 load={ 7.10 5.97 5.11 }
+17:25:55 start nat_ep30 load={ 5.34 5.73 5.08 }
+17:27:13 start nat_mb2048 load={ 5.62 5.69 5.12 }
+17:28:07 start nat_mb128 load={ 6.19 5.89 5.23 }
+17:29:03 start imp1_k32 load={ 7.00 6.20 5.39 }
+17:30:36 start imp2_k8 load={ 6.81 6.47 5.58 }
+17:32:02 start nat_k8_b load={ 4.82 5.95 5.47 }
+17:32:55 start imp1_k8_b load={ 5.09 5.80 5.44 }
+17:33:59 start imp4_k8_b load={ 3.38 5.29 5.27 }
+17:35:30 done

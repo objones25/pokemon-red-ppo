@@ -1,0 +1,15 @@
+# Never commit or upload the ROM; each user supplies their own copy.
+*.gb
+*.gb.ram
+*.gb.rtc
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage*
+coverage.xml
+mutants/
+runs/
+wandb/
