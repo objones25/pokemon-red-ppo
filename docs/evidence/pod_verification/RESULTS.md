@@ -14,7 +14,7 @@ load average show them. Raw files are in `results/`; the code that made them is 
 | Pinning choice | **Bug, fixed:** pinning to the lowest CPUs gave 1,881 steps/s, because CPUs 0-25 carried other tenants' load. Unpinned 3,095-3,226, pinned elsewhere 2,997-3,338, and pinned to the quietest cores 3,083 (`loopcost.jsonl`) |
 | GPU use | Real, 5.8% utilization at k=8 T=512, 111 W against 53 W idle, 6.2 GB |
 | Checkpoints | On the volume at `/workspace/pokered/runs/main/checkpoints` |
-| SIGTERM | Saved at 819,200 steps and exited in 3 s with code 1 and a traceback, no workers left (`c_train.log`). Resume read "resumed from 614400 env steps" |
+| SIGTERM | Saved at 819,200 steps and exited in 3 s with code 1 and a traceback, no workers left (`c_train.log`). The next run read "resumed from 819200 env steps" (`d_train.log`) |
 | Self-delete | `--terminate-pod-on-exit` with the pod-scoped key from `/proc/1/environ` deleted the pod: GET 200, DELETE 204, and from outside the API read 404 (`d_train.log`). That key can't list volumes (403) |
 | Confirming the delete | **Bug, fixed:** after the DELETE the same key reads 403, because it dies with its pod. `terminate()` raised `TerminateFailed` and logged a false "may still be billing". A refusal after a successful DELETE now counts as gone |
 | W&B with no key | **Bug, fixed:** online mode raised `UsageError` at start-up and leaked the workers and shared memory; with self-delete on, that would have deleted the pod. `train.sh` now logs offline when there is no key |

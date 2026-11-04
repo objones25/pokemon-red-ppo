@@ -19,6 +19,7 @@ from pokered.runpod import (
     OwnPodUnknown,
     PodTerminator,
     TerminateFailed,
+    delete_own_pod,
     own_api_key,
     own_pod_id,
 )
@@ -221,3 +222,38 @@ def test_missing_api_key_is_a_clear_error(tmp_path):
 def test_unreadable_proc1_is_a_clear_error(tmp_path):
     with pytest.raises(MissingSecret, match="RUNPOD_API_KEY"):
         own_api_key({}, tmp_path / "missing")
+
+
+def test_delete_own_pod_reports_success_as_exit_zero(monkeypatch):
+    deleted: list[bool] = []
+
+    class Terminator:
+        pod_id = POD
+
+        def terminate(self) -> None:
+            deleted.append(True)
+
+    monkeypatch.setattr("pokered.runpod.own_terminator", lambda _environ, _client: Terminator())
+    assert delete_own_pod() == 0
+    assert deleted == [True]
+
+
+def test_delete_own_pod_says_the_pod_may_be_billing_when_it_cannot_delete(monkeypatch, capsys):
+    class Terminator:
+        pod_id = POD
+
+        def terminate(self) -> None:
+            raise TerminateFailed("HTTP 500")
+
+    monkeypatch.setattr("pokered.runpod.own_terminator", lambda _environ, _client: Terminator())
+    assert delete_own_pod() == 1
+    assert "MAY STILL BE BILLING" in capsys.readouterr().err
+
+
+def test_delete_own_pod_reports_a_missing_key(monkeypatch, capsys):
+    def no_key(_environ: object, _client: object) -> None:
+        raise MissingSecret("RUNPOD_API_KEY is not set")
+
+    monkeypatch.setattr("pokered.runpod.own_terminator", no_key)
+    assert delete_own_pod() == 1
+    assert "RUNPOD_API_KEY is not set" in capsys.readouterr().err

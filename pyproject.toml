@@ -3,6 +3,8 @@ name = "pokered-ppo"
 version = "0.1.0"
 description = "PPO agent for Pokemon Red on PyBoy, rewarding exploration and story progress without farmable terms."
 requires-python = ">=3.12,<3.13"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 dependencies = [
     "pyboy==2.9.0",
     "numpy",
@@ -18,6 +20,7 @@ dependencies = [
 [project.scripts]
 pokered-train = "pokered.train:main"
 pokered-evaluate = "pokered.evaluate:main"
+pokered-delete-pod = "pokered.runpod:main"
 
 [dependency-groups]
 dev = [

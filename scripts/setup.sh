@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
 # setup.sh: prepare a Runpod pod for training. Refuses unless the network volume is mounted at /workspace and the ROM
-# is on it. Installs into a venv on the container disk that reuses the image's torch, then asks for API keys.
+# is on it. Installs into a venv on the container disk that reuses the image's torch, then asks for a W&B key unless
+# a working one is already stored, and checks it with W&B.
 # Run it on every new pod: the container disk doesn't survive one, and the repo, ROM and .env on the volume do.
 #
 # Usage: scripts/setup.sh
-# Requires: bash 3.2+, uv, awk, shasum or sha1sum. Keys are read from stdin without echo.
+# Requires: bash 3.2+, uv, awk, shasum or sha1sum. The key is read from stdin without echo.
 # Exit status: 1 on any refusal or failed step.
 # Test-only overrides: POKERED_MOUNTS_FILE, POKERED_VENV, POKERED_ENV_FILE, POKERED_ROM_SHA1, POKERED_SYSTEM_PYTHON.
 # bash-target: 3.2
@@ -41,20 +42,34 @@ existing_value() {
   awk -F= -v key="$1" '$1 == key { print substr($0, length(key) + 2) }' "$ENV_FILE"
 }
 
-# Asks for one key on stdin; an empty answer keeps the current value. Never echoes a secret.
-ask() {
-  local name=$1 flags=$2 current answer=""
-  current=$(existing_value "$name")
-  printf '%s%s: ' "$name" "${current:+ [set; Enter keeps it]}" >&2
-  if [[ $flags == -s ]]; then
-    IFS= read -r -s answer || true
-  else
-    IFS= read -r answer || true
+key_works() {
+  WANDB_API_KEY=$1 WANDB_SILENT=true "$VENV/bin/python" -m pokered.wandb_check
+}
+
+# Prints the W&B key to store, or nothing to log offline. Asks only when no working key is already known.
+wandb_key() {
+  local key answer attempt
+  key=${WANDB_API_KEY:-$(existing_value WANDB_API_KEY)}
+  if [[ -n $key ]] && key_works "$key"; then
+    printf '%s\n' "$key"
+    return 0
   fi
-  printf '\n' >&2
-  answer=${answer:-$current}
-  [[ $answer =~ ^[A-Za-z0-9_.:-]*$ ]] || die "$name has characters this .env format can't hold"
-  printf '%s=%s\n' "$name" "$answer"
+  for attempt in 1 2 3; do
+    printf 'W&B API key from https://wandb.ai/authorize (hidden; Enter logs offline, try %s of 3): ' "$attempt" >&2
+    answer=""
+    IFS= read -r -s answer || true
+    printf '\n' >&2
+    answer=${answer//[[:space:]]/}
+    if [[ -z $answer ]]; then
+      printf '%s: no key, so this run logs offline; upload it later with wandb sync\n' "$SCRIPT_NAME" >&2
+      return 0
+    fi
+    if [[ $answer =~ ^[A-Za-z0-9_.:-]+$ ]] && key_works "$answer"; then
+      printf '%s\n' "$answer"
+      return 0
+    fi
+  done
+  die "no working W&B key after 3 tries; rerun, or press Enter at the prompt to log offline"
 }
 
 main() {
@@ -73,19 +88,19 @@ main() {
   "$VENV/bin/python" -c 'import pokered.train, torch; print("torch", torch.__version__, "cuda", torch.cuda.is_available())' \
     || die "the environment can't import the project and torch"
 
-  local temporary
+  local key temporary name value
+  key=$(wandb_key)
   temporary=$(mktemp "$ENV_FILE.XXXXXX") || die "cannot create a file next to $ENV_FILE"
   chmod 0600 "$temporary"
   {
-    ask WANDB_API_KEY -s
-    ask WANDB_ENTITY ""
-    ask RUNPOD_API_KEY -s
-  } >"$temporary" || {
-    rm -f -- "$temporary"
-    exit 1
-  }
+    if [[ -n $key ]]; then printf 'WANDB_API_KEY=%s\n' "$key"; fi
+    for name in WANDB_ENTITY RUNPOD_API_KEY; do # Optional, and never asked for: the pod has its own Runpod key.
+      value=$(existing_value "$name")
+      if [[ -n $value ]]; then printf '%s=%s\n' "$name" "$value"; fi
+    done
+  } >"$temporary"
   mv -f -- "$temporary" "$ENV_FILE"
-  printf '%s: ready; start training with scripts/train.sh\n' "$SCRIPT_NAME" >&2
+  printf '%s: ready; start training with scripts/start.sh\n' "$SCRIPT_NAME" >&2
 }
 
 if [[ ${BASH_SOURCE[0]} == "$0" ]]; then main "$@"; fi

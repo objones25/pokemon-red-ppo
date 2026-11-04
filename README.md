@@ -19,8 +19,18 @@ uv run pokered-evaluate --rom "Pokemon Red.gb" \
   --checkpoints runs/default/checkpoints --output eval.json           # score the latest checkpoint
 ```
 
-On a Runpod GPU pod with a network volume at `/workspace`, clone this repo onto the volume, put the ROM at
-`/workspace/rom/Pokemon Red.gb`, then run `scripts/setup.sh` and `scripts/train.sh`.
+To train on a Runpod GPU pod, create a pod (image `runpod/pytorch:1.6.0-cu1300-torch2130-ubuntu2404`) with a network volume
+at `/workspace` and 22/tcp exposed, then run this from your machine, with the pod's public IP and external SSH port:
+
+```bash
+scripts/launch_pod.sh HOST PORT
+```
+
+It clones the repo onto the volume, uploads the ROM if the volume has none, installs everything, and asks once for your
+W&B key, which it checks and stores. Training then runs detached, so you can close the connection or sleep your machine.
+It resumes from the newest checkpoint on the volume, and the pod deletes itself when training ends, while the volume and
+its checkpoints stay. Run the same command again to watch a running pod. Already on the pod? `scripts/start.sh` does the
+same from there.
 
 ## Status
 
@@ -32,3 +42,7 @@ story events per episode, against 73 and 0 for random actions, on one seed, with
 ## Credits
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## License
+
+MIT: see [LICENSE](LICENSE). The ROM isn't covered and isn't distributed here.

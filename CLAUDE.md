@@ -12,7 +12,9 @@ they serve that progress: the agent must not be able to earn reward by grinding.
 ## Status
 
 Built and tested: start state, Gymnasium env (battle animations off), parallel workers with CPU pinning, model, custom
-PPO, atomic checkpoints with resume, W&B logging, pod shutdown, `scripts/setup.sh` and `scripts/train.sh`.
+PPO, atomic checkpoints with resume, W&B logging, pod shutdown, and the pod scripts (`launch_pod.sh`, `start.sh`, `setup.sh`,
+`train.sh`). Pods train with `fast_mode`; `EnvConfig` still defaults to accurate, and `pokered-evaluate` uses whichever mode the
+checkpoint was trained in.
 
 A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique tiles and 4 events per episode against 73 and
 0 for random actions, though its episodes ran twice as long because events extend the budget, and it gained no levels.
@@ -76,11 +78,18 @@ OMP_NUM_THREADS=1 nice -n 15 python3 ~/.claude/skills/pytest-expert/scripts/muta
 uv run python scripts/convert_state.py "Pokemon Red.gb" SOURCE.state DESTINATION.state
 ```
 
-On a pod, with the repo on the `/workspace` volume and the ROM at `/workspace/rom/Pokemon Red.gb`:
+To train on a pod, from the Mac, with the pod's public IP and external SSH port:
 
 ```bash
-scripts/setup.sh                                  # needs a mounted volume and the right ROM; asks for keys
-scripts/train.sh                                  # resumes, logs to W&B (offline without a key), deletes the pod when training ends
+scripts/launch_pod.sh HOST PORT                   # repo and ROM onto the volume, then start.sh in a terminal; rerun to reattach
+```
+
+On the pod, with the repo on the `/workspace` volume and the ROM at `/workspace/rom/Pokemon Red.gb`:
+
+```bash
+scripts/start.sh                                  # setup, then train detached and show the log; rerun to reattach
+scripts/setup.sh                                  # needs a mounted volume and the right ROM; asks for a W&B key if none works
+scripts/train.sh                                  # foreground, fast_mode: resumes, logs to W&B (offline without a key), deletes the pod at the end
 ```
 
 Locally: `uv run pokered-train --env.rom "Pokemon Red.gb" --wandb-mode offline`.

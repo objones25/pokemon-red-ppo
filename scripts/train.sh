@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# train.sh: train on a pod, resuming from the newest checkpoint on the volume, then delete the pod when training ends.
+# train.sh: train on a pod in the foreground, resuming from the newest checkpoint on the volume, then delete the pod when
+# training ends. Most runs want scripts/start.sh, which runs setup first and survives a dropped SSH connection.
+# Uses fast_mode, which matched accurate mode's game memory on PyBoy 2.9.0: docs/evidence/pod_verification/RESULTS.md.
 # The worker count comes from the cgroup CPU limit, which can be below the vCPU count Runpod reports.
 #
 # Usage: scripts/train.sh [pokered-train options, which override these defaults]
@@ -72,6 +74,7 @@ main() {
   fi
   exec "$VENV/bin/pokered-train" \
     --env.rom "$ROM" \
+    --env.fast-mode \
     --workers "$workers" \
     --envs-per-worker 8 \
     --ppo.rollout-steps 2048 \

@@ -5,7 +5,9 @@ Ported from the user's massively-parallel-rl project. The network volume survive
 
 from __future__ import annotations
 
+import os
 import re
+import sys
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -199,3 +201,18 @@ class PodTerminator:
                 return response
             last = f"HTTP {response.status_code}: {response.text[:_EXCERPT_CHARS]}"
         raise TerminateFailed(f"{method} of pod {self._pod_id} failed after {self._max_attempts} attempts: {last}")
+
+
+def delete_own_pod() -> int:  # nsp: ignore NSP001 a thin CLI; PodTerminator holds the checks and every failure is reported
+    """For start.sh, when a killed trainer couldn't delete the pod itself. Returns the exit status."""
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            own_terminator(os.environ, client).terminate()
+    except (MissingSecret, OwnPodUnknown, TerminateFailed) as error:
+        print(f"THE POD MAY STILL BE BILLING, delete it by hand: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def main() -> None:
+    sys.exit(delete_own_pod())
