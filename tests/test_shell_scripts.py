@@ -139,3 +139,31 @@ def test_train_leaves_one_core_of_the_cgroup_limit_for_the_main_process(pod, tmp
 def test_train_falls_back_to_cpu_count_without_a_quota(pod, tmp_path):
     expected = max((os.cpu_count() or 2) - 1, 1)
     assert f"--workers {expected} " in _workers_flag(tmp_path, pod, "max 100000")
+
+
+def _numa_flag(tmp_path, pod, node: str, bus_id: str = "00000000:81:00.0") -> str:
+    _fake_tool(tmp_path / "bin", "nvidia-smi", f'printf "%s\\n" "{bus_id}"')
+    sysfs = tmp_path / "pci"
+    (sysfs / "0000:81:00.0").mkdir(parents=True)
+    (sysfs / "0000:81:00.0" / "numa_node").write_text(f"{node}\n")
+    _run(SETUP, pod, stdin=ANSWERS)
+    _run(TRAIN, {**pod, "POKERED_PCI_SYSFS": str(sysfs)})
+    return (tmp_path / "tool.log").read_text().splitlines()[-1]
+
+
+def test_train_pins_to_the_numa_node_the_gpu_is_on(pod, tmp_path):
+    assert "--numa-node 1 " in _numa_flag(tmp_path, pod, "1")
+
+
+def test_train_uses_node_zero_when_the_kernel_reports_no_node(pod, tmp_path):
+    assert "--numa-node 0 " in _numa_flag(tmp_path, pod, "-1")
+
+
+def test_train_uses_node_zero_without_nvidia_smi(pod, tmp_path):
+    _run(SETUP, pod, stdin=ANSWERS)
+    _run(TRAIN, {**pod, "POKERED_PCI_SYSFS": str(tmp_path / "missing")})
+    assert "--numa-node 0 " in (tmp_path / "tool.log").read_text().splitlines()[-1]
+
+
+def test_train_uses_node_zero_when_the_bus_id_has_no_sysfs_entry(pod, tmp_path):
+    assert "--numa-node 0 " in _numa_flag(tmp_path, pod, "1", bus_id="00000000:01:00.0")

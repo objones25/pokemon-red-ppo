@@ -103,6 +103,17 @@ def test_config_changed_error_names_the_field():
         CheckpointStore.require_same_config({"gamma": 0.9, "total_steps": 1}, {"gamma": 0.8, "total_steps": 1})
 
 
+@pytest.mark.parametrize("name", ["terminate_pod_on_exit", "pin_workers", "numa_node", "workers"])
+def test_settings_of_the_pod_may_change_on_resume(name):
+    """A new pod can have a different CPU limit and NUMA layout, and a test run may keep its pod: none is a new experiment."""
+    assert CheckpointStore.require_same_config({"gamma": 0.9, name: 1}, {"gamma": 0.9, name: 2}) is None
+
+
+def test_envs_per_worker_may_not_change_on_resume():
+    with pytest.raises(ConfigChanged, match="envs_per_worker"):
+        CheckpointStore.require_same_config({"envs_per_worker": 8}, {"envs_per_worker": 32})
+
+
 def test_total_steps_may_change_on_resume():
     assert CheckpointStore.require_same_config({"gamma": 0.9, "total_steps": 1}, {"gamma": 0.9, "total_steps": 2}) is None
 

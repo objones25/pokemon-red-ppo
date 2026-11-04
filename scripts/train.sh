@@ -6,7 +6,7 @@
 # Usage: scripts/train.sh [pokered-train options, which override these defaults]
 # Requires: bash 3.2+, awk; run scripts/setup.sh on this pod first.
 # Exit status: that of pokered-train.
-# Test-only overrides: POKERED_VENV, POKERED_ENV_FILE, POKERED_CPU_MAX_FILE.
+# Test-only overrides: POKERED_VENV, POKERED_ENV_FILE, POKERED_CPU_MAX_FILE, POKERED_PCI_SYSFS.
 # bash-target: 3.2
 
 set -Eeuo pipefail
@@ -17,6 +17,7 @@ readonly VENV=${POKERED_VENV:-/opt/venv}
 readonly ROM=${POKERED_ROM:-$VOLUME/rom/Pokemon Red.gb}
 readonly RUN_NAME=${POKERED_RUN_NAME:-main}
 readonly CPU_MAX_FILE=${POKERED_CPU_MAX_FILE:-/sys/fs/cgroup/cpu.max}
+readonly PCI_SYSFS=${POKERED_PCI_SYSFS:-/sys/bus/pci/devices}
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 readonly REPO
 readonly ENV_FILE=${POKERED_ENV_FILE:-$REPO/.env}
@@ -38,6 +39,17 @@ worker_count() {
   if ((cpus > 1)); then printf '%s\n' "$((cpus - 1))"; else printf '1\n'; fi
 }
 
+# The NUMA node of the first GPU, or 0 when it can't be told. nvidia-smi prints an 8-digit PCI domain, sysfs 4 digits.
+gpu_numa_node() {
+  local bus_id="" node=""
+  bus_id=$(nvidia-smi --query-gpu=pci.bus_id --format=csv,noheader 2>/dev/null | awk 'NR == 1 { print tolower($1) }') || true
+  bus_id=${bus_id#0000}
+  if [[ -n $bus_id && -r $PCI_SYSFS/$bus_id/numa_node ]]; then
+    node=$(<"$PCI_SYSFS/$bus_id/numa_node")
+  fi
+  if [[ $node =~ ^[0-9]+$ ]]; then printf '%s\n' "$node"; else printf '0\n'; fi
+}
+
 main() {
   [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing: run scripts/setup.sh first"
   [[ -x $VENV/bin/pokered-train ]] || die "$VENV has no pokered-train: run scripts/setup.sh first"
@@ -53,6 +65,7 @@ main() {
     --envs-per-worker 8 \
     --ppo.rollout-steps 512 \
     --pin-workers \
+    --numa-node "$(gpu_numa_node)" \
     --terminate-pod-on-exit \
     --run-name "$RUN_NAME" \
     --run-dir "$VOLUME/pokered/runs/$RUN_NAME" \

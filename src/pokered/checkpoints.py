@@ -22,8 +22,24 @@ log = logging.getLogger(__name__)
 
 _NAME: Final = re.compile(r"^checkpoint_(\d{12})\.pt$")
 _DIR_FLAGS: Final = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-# Settings that may differ on resume without changing what is being trained.
-_RESUME_MAY_CHANGE: Final = frozenset({"total_steps", "run_dir", "wandb_mode", "checkpoint_every_steps", "keep_checkpoints", "device", "torch_threads"})
+# Settings that may differ on resume: run length and bookkeeping, and what depends on the pod. A new pod can have a
+# different CPU limit, so it can have a different worker count; that changes the batch size, but stopping there would
+# delete the pod and strand the run.
+_RESUME_MAY_CHANGE: Final = frozenset(
+    {
+        "total_steps",
+        "run_dir",
+        "wandb_mode",
+        "checkpoint_every_steps",
+        "keep_checkpoints",
+        "device",
+        "torch_threads",
+        "terminate_pod_on_exit",
+        "pin_workers",
+        "numa_node",
+        "workers",
+    }
+)
 
 
 class ConfigChanged(ValueError):

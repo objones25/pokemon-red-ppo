@@ -8,7 +8,8 @@ import math
 import os
 import signal
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict
 from functools import partial
 from types import FrameType
@@ -70,6 +71,19 @@ def run_guarded(work: Callable[[], None], terminator: Terminator | None) -> None
             terminator.terminate()
     finally:
         signal.signal(signal.SIGTERM, previous)
+
+
+@contextmanager
+def holding_sigterm() -> Iterator[None]:  # nsp: ignore NSP001 control flow only; each path is tested
+    """Hold SIGTERM until the block ends, then deliver it: an update or a save must never stop halfway."""
+    received: list[int] = []
+    previous = signal.signal(signal.SIGTERM, lambda number, _frame: received.append(number))
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    if received:
+        signal.raise_signal(signal.SIGTERM)
 
 
 def pick_device(requested: str = "auto") -> torch.device:  # nsp: ignore NSP001 torch.device rejects bad names
@@ -147,44 +161,45 @@ def train(config: TrainConfig, model: nn.Module, envs: Envs, logger: Logger, sto
 
     rollout = Rollout(config.ppo.rollout_steps, config.num_envs, OBSERVATION_SHAPES, device)
     updates = math.ceil(max(config.total_steps - env_steps, 0) / config.batch_size)
-    for _ in range(updates):
-        started = time.perf_counter()
-        try:
+    try:
+        for _ in range(updates):
+            started = time.perf_counter()
             episodes = collect_rollout(model, envs, rollout, device)
-        except PodStopping:
-            if env_steps > 0:
-                save()  # Weights only change in updates, so this is the state at the end of the last one.
-            raise
-        collected = time.perf_counter()
-        advantages, returns = compute_gae(
-            rewards=rollout.rewards,
-            values=rollout.values,
-            next_values=rollout.next_values,
-            terminated=rollout.terminated,
-            truncated=rollout.truncated,
-            gamma=config.ppo.gamma,
-            lam=config.ppo.lam,
-        )
-        health = ppo_update(model, optimizer, rollout, advantages, returns, config.ppo)
-        finished = time.perf_counter()
-        previous_steps = env_steps
-        env_steps += config.batch_size
-        check_finite(rollout.rewards, "rollout rewards")
-        logger.log(
-            {
-                **{f"ppo/{name}": value for name, value in health.items()},
-                **episode_metrics(episodes),
-                "rollout/reward_per_step": float(rollout.rewards.mean()),
-                "rollout/truncations": float(rollout.truncated.sum()),
-                "perf/steps_per_second": config.batch_size / (finished - started),
-                "perf/collect_seconds": collected - started,
-                "perf/update_seconds": finished - collected,
-            },
-            step=env_steps,
-        )
-        crossed = env_steps // config.checkpoint_every_steps > previous_steps // config.checkpoint_every_steps
-        if crossed or env_steps >= config.total_steps:
-            save()
+            collected = time.perf_counter()
+            with holding_sigterm():
+                advantages, returns = compute_gae(
+                    rewards=rollout.rewards,
+                    values=rollout.values,
+                    next_values=rollout.next_values,
+                    terminated=rollout.terminated,
+                    truncated=rollout.truncated,
+                    gamma=config.ppo.gamma,
+                    lam=config.ppo.lam,
+                )
+                health = ppo_update(model, optimizer, rollout, advantages, returns, config.ppo)
+                finished = time.perf_counter()
+                previous_steps = env_steps
+                env_steps += config.batch_size
+                check_finite(rollout.rewards, "rollout rewards")
+                logger.log(
+                    {
+                        **{f"ppo/{name}": value for name, value in health.items()},
+                        **episode_metrics(episodes),
+                        "rollout/reward_per_step": float(rollout.rewards.mean()),
+                        "rollout/truncations": float(rollout.truncated.sum()),
+                        "perf/steps_per_second": config.batch_size / (finished - started),
+                        "perf/collect_seconds": collected - started,
+                        "perf/update_seconds": finished - collected,
+                    },
+                    step=env_steps,
+                )
+                crossed = env_steps // config.checkpoint_every_steps > previous_steps // config.checkpoint_every_steps
+                if crossed or env_steps >= config.total_steps:
+                    save()
+    except PodStopping:
+        if env_steps > 0:
+            save()  # Weights only change inside the held block, so this is the state at the end of the last update.
+        raise
     require(env_steps >= config.total_steps, f"stopped at {env_steps} of {config.total_steps} steps")
 
 

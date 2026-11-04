@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import signal
+from functools import partial
 
 import numpy as np
 import pytest
@@ -15,7 +16,7 @@ from pokered.model import ActorCritic
 from pokered.negative_space import CheckFailed, expect
 from pokered.observations import OBSERVATION_SHAPES
 from pokered.runpod import TerminateFailed
-from pokered.train import PodStopping, episode_metrics, pick_device, run_guarded, train
+from pokered.train import PodStopping, episode_metrics, holding_sigterm, pick_device, run_guarded, train
 from pokered.vec import StepResult
 
 EPISODE_LENGTH = 6
@@ -264,6 +265,46 @@ def test_sigterm_during_rollout_saves_the_last_finished_update(tmp_path):
     with pytest.raises(PodStopping):
         train(config, ActorCritic(), StoppingVec(stop_at=10), ListLogger(), store, torch.device("cpu"))
     assert _latest(store)["env_steps"] == 32
+
+
+class StoppingLogger(ListLogger):
+    """SIGTERM lands while the first update's results are being logged, which is outside the rollout."""
+
+    def log(self, metrics, *, step: int) -> None:
+        super().log(metrics, step=step)
+        signal.raise_signal(signal.SIGTERM)
+
+
+def test_sigterm_outside_the_rollout_still_saves_the_finished_update(tmp_path):
+    config = _config(tmp_path, total_steps=64)
+    store = CheckpointStore(tmp_path / "checkpoints")
+    work = partial(train, config, ActorCritic(), FakeVec(), StoppingLogger(), store, torch.device("cpu"))
+    with pytest.raises(PodStopping):
+        run_guarded(work, None)
+    assert _latest(store)["env_steps"] == 32
+
+
+def test_sigterm_during_the_update_lets_the_update_finish(tmp_path, monkeypatch):
+    completed = []
+
+    def update_interrupted_midway(*args):
+        signal.raise_signal(signal.SIGTERM)
+        completed.append(True)  # A handler that raised would never reach this line.
+        return {}
+
+    monkeypatch.setattr("pokered.train.ppo_update", update_interrupted_midway)
+    config = _config(tmp_path, total_steps=64)
+    work = partial(train, config, ActorCritic(), FakeVec(), ListLogger(), CheckpointStore(tmp_path / "checkpoints"), torch.device("cpu"))
+    with pytest.raises(PodStopping):
+        run_guarded(work, None)
+    assert completed == [True]
+
+
+def test_holding_sigterm_restores_the_handler():
+    before = signal.getsignal(signal.SIGTERM)
+    with holding_sigterm():
+        assert signal.getsignal(signal.SIGTERM) is not before
+    assert signal.getsignal(signal.SIGTERM) is before
 
 
 def test_sigterm_before_any_update_saves_nothing(tmp_path):
