@@ -43,6 +43,7 @@ _POD_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 _OK = 200
 _NO_CONTENT = 204
 _NOT_FOUND = 404
+_REFUSED = frozenset({401, 403})
 _TOO_MANY_REQUESTS = 429
 _SERVER_ERROR_FLOOR = 500
 _EXCERPT_CHARS = 200
@@ -151,7 +152,7 @@ class PodTerminator:
             raise self._failure("DELETE", deleted)
         status = None
         for attempt in bounded(range(self._max_attempts), self._max_attempts, "termination confirmation"):
-            status = self._read_status()
+            status = self._read_status(refused_means_gone=True)
             if status is None or status == "TERMINATED":
                 return
             if attempt < self._max_attempts - 1:
@@ -161,10 +162,13 @@ class PodTerminator:
     def _delay(self, retry: int) -> float:
         return self._base_delay_s * 2 ** (retry - 1)
 
-    def _read_status(self) -> str | None:
-        """The pod's status, or None when the API says it no longer exists (404)."""
+    def _read_status(self, *, refused_means_gone: bool = False) -> str | None:
+        """The pod's status, or None when the API says it no longer exists (404).
+
+        A pod-scoped key dies with its pod, so a key that was just able to read and delete it is refused afterwards.
+        """
         response = self._send("GET")
-        if response.status_code == _NOT_FOUND:
+        if response.status_code == _NOT_FOUND or (refused_means_gone and response.status_code in _REFUSED):
             return None
         if response.status_code != _OK:
             raise self._failure("GET", response)

@@ -153,6 +153,22 @@ def test_delete_404_fails_when_pod_still_exists() -> None:
     assert script.methods == ["GET", "DELETE", "GET"]
 
 
+@pytest.mark.parametrize("status", [401, 403])
+def test_a_pod_scoped_key_refused_after_a_delete_counts_as_gone(status: int) -> None:
+    """Seen on a real pod: the pod's own key reads 200, deletes 204, then reads 403 because the pod no longer exists."""
+    script = Script(delete=[_reply(204)], get=[_status("RUNNING"), _reply(status)])
+    _terminator(script, []).terminate()
+    assert script.methods == ["GET", "DELETE", "GET"]
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_a_refused_read_before_any_delete_is_still_a_failure(status: int) -> None:
+    script = Script(delete=[_reply(204)], get=[_reply(status)])
+    with pytest.raises(TerminateFailed, match=str(status)):
+        _terminator(script, []).terminate()
+    assert script.methods == ["GET"]
+
+
 def test_never_confirmed_terminated_raises() -> None:
     script = Script([_reply(204)], [_status("RUNNING")])
     with pytest.raises(TerminateFailed, match="RUNNING"):
