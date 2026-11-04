@@ -105,3 +105,19 @@ No policy got worse in the mode it wasn't trained in.
 Which mode got further flips with the seed. Two seeds can't rule out a small effect in either direction, but there is no sign of one. Same-steps wall time: fast took 2.3 times less at equal shares of the CPU (3,685 vs 1,578 and 3,328 vs 1,531 steps/s).
 
 **Verdict: safe to train with** on these maps, because game state stayed identical in everything compared. What changes is the picture, one frame sooner on a few percent of steps, and policies didn't care. Expect about 2.0-2.3 times the throughput on a host like this one (+99%, +110%, +129% across three configs). Conditions: rerun `tools/fidelity.py` if PyBoy changes from 2.9.0, because this rests on that version's `FastLCD`; and keep evaluation on one mode so comparisons across runs stay clean. What this can't settle: late-game maps under real play, and a small learning effect, which needs more seeds.
+
+## launch_pod.sh, later the same day
+
+One real run of `scripts/launch_pod.sh` through a terminal, on a PRO 6000 MIG 24GB in US-WA-1 at $0.69/h, because A100s were out of stock. About 6 minutes, with a fresh 10 GB volume, both since deleted.
+
+| Step | Result |
+|---|---|
+| Fresh volume | Cloned the repo, uploaded the ROM, and `setup.sh` passed its SHA-1 and mount checks |
+| Prompt | Hidden prompt on the pod. A well-formed fake key was refused by the real W&B server and asked again; Enter chose offline, as the output said |
+| Trainer | Ran with `--env.fast-mode`, workers from the cgroup limit (2) |
+| Dropped connection | With the launcher and its SSH killed, the trainer was still running from a new connection |
+| Reattach | `start.sh` reported "already running" and started no second trainer |
+| `kill -KILL` of the trainer | The supervisor reported status 137 and deleted the pod; the connection closed and `list-pods` was empty |
+
+Not covered: a working W&B key and online logging, an A100 at this scale, and a completed update in this run, which was stopped before its first.
+

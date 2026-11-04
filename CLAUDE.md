@@ -20,7 +20,7 @@ A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique til
 0 for random actions, though its episodes ran twice as long because events extend the budget, and it gained no levels.
 
 `scripts/setup.sh`, `scripts/train.sh`, pinning, SIGTERM saves and self-deletion with the pod-scoped key have run on a real
-A100 pod (`docs/evidence/pod_verification/RESULTS.md`). Online W&B has not: no key was available. No full training has run.
+A100 pod (`docs/evidence/pod_verification/RESULTS.md`). `launch_pod.sh` and `start.sh` have too, on a smaller GPU. Online W&B has not: no key was available. No full training has run.
 Keep this section and **Commands** in step with the code, and do not document commands that do not exist.
 
 ## Requirements
