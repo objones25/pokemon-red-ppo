@@ -1,0 +1,5 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+wild resync steps 2415 s 29.4 non_rng 0 first {}
+menus resync steps 1000 s 13.1 non_rng 0 first {}
+cities resync steps 2431 s 27.8 non_rng 0 first {}
+heal resync steps 198 s 2.4 non_rng 0 first {}

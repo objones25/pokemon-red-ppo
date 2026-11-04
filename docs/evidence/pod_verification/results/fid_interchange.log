@@ -1,0 +1,5 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+{'saved_in': 'accurate', 'where': 'lab', 'state_bytes': 178108, 'steps': 3000, 'first_divergence_same_mode': None, 'first_divergence_other_mode': None, 'screen_diff_steps_other_mode': 323, 'resaved_bytes_equal': False, 'final_place': [(0, 15, 12, 0), (0, 15, 12, 0)]}
+{'saved_in': 'fast', 'where': 'lab', 'state_bytes': 178108, 'steps': 3000, 'first_divergence_same_mode': None, 'first_divergence_other_mode': None, 'screen_diff_steps_other_mode': 323, 'resaved_bytes_equal': False, 'final_place': [(0, 15, 12, 0), (0, 15, 12, 0)]}
+{'saved_in': 'accurate', 'where': 'viridian', 'state_bytes': 178108, 'steps': 3000, 'first_divergence_same_mode': None, 'first_divergence_other_mode': None, 'screen_diff_steps_other_mode': 281, 'resaved_bytes_equal': False, 'final_place': [(1, 33, 28, 0), (1, 33, 28, 0)]}
+{'saved_in': 'fast', 'where': 'viridian', 'state_bytes': 178108, 'steps': 3000, 'first_divergence_same_mode': None, 'first_divergence_other_mode': None, 'screen_diff_steps_other_mode': 281, 'resaved_bytes_equal': False, 'final_place': [(1, 33, 28, 0), (1, 33, 28, 0)]}

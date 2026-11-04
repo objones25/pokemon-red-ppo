@@ -74,7 +74,7 @@ main() {
     --env.rom "$ROM" \
     --workers "$workers" \
     --envs-per-worker 8 \
-    --ppo.rollout-steps 512 \
+    --ppo.rollout-steps 2048 \
     --pin-workers \
     --numa-node "$(gpu_numa_node)" \
     --terminate-pod-on-exit \

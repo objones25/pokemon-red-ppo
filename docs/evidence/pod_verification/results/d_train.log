@@ -1,0 +1,23 @@
+started 18:16:10
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+train.sh: no WANDB_API_KEY, so W&B logs offline
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+2026-11-04 18:16:29,463 INFO pokered.train: resumed from 819200 env steps
+2026-11-04 18:17:43,276 INFO httpx: HTTP Request: GET https://api.runpod.io/v2/pods/x4dv4gnmzsazoz "HTTP/1.1 200 OK"
+2026-11-04 18:17:43,839 INFO httpx: HTTP Request: DELETE https://api.runpod.io/v2/pods/x4dv4gnmzsazoz "HTTP/1.1 204 No Content"
+2026-11-04 18:17:43,960 INFO httpx: HTTP Request: GET https://api.runpod.io/v2/pods/x4dv4gnmzsazoz "HTTP/1.1 403 Forbidden"
+Traceback (most recent call last):
+  File "/opt/venv/bin/pokered-train", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 212, in main
+    run_guarded(partial(_run, config), terminator)
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 71, in run_guarded
+    terminator.terminate()
+  File "/workspace/pokemon-red-ppo/src/pokered/runpod.py", line 154, in terminate
+    status = self._read_status()
+             ^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/runpod.py", line 170, in _read_status
+    raise self._failure("GET", response)
+pokered.runpod.TerminateFailed: GET of pod x4dv4gnmzsazoz failed with HTTP 403: {"detail":"Access to the requested resource was denied.","status":403,"title":"Forbidden"}
+

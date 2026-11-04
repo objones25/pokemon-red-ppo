@@ -118,6 +118,15 @@ def test_train_runs_with_pod_defaults_after_setup(pod, tmp_path):
     assert "--total-steps 1000" in last
 
 
+def test_train_defaults_to_the_rollout_length_the_paper_preferred(pod, tmp_path):
+    """On the pod T = 512 and T = 2048 ran at the same speed, within noise, so nothing argues against the longer one."""
+    _run(SETUP, pod, stdin=ANSWERS)
+    _run(TRAIN, pod)
+    last = (tmp_path / "tool.log").read_text().splitlines()[-1]
+    assert "--envs-per-worker 8 " in last
+    assert "--ppo.rollout-steps 2048 " in last
+
+
 def test_train_passes_the_rom_path(pod, tmp_path):
     _run(SETUP, pod, stdin=ANSWERS)
     _run(TRAIN, pod)

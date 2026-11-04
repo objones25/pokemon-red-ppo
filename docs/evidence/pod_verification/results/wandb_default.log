@@ -1,0 +1,31 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+Traceback (most recent call last):
+  File "/opt/venv/bin/pokered-train", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 212, in main
+    run_guarded(partial(_run, config), terminator)
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 60, in run_guarded
+    work()
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 230, in _run
+    logger = WandbLogger(
+             ^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/wandb_logger.py", line 34, in __init__
+    self._run = wandb.init(mode=mode, **options)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.12/site-packages/wandb/sdk/wandb_init.py", line 1464, in init
+    wi.maybe_login(init_settings)
+  File "/opt/venv/lib/python3.12/site-packages/wandb/sdk/wandb_init.py", line 211, in maybe_login
+    wandb_login._login(
+  File "/opt/venv/lib/python3.12/site-packages/wandb/sdk/wandb_login.py", line 209, in _login
+    auth = _find_or_prompt_for_key(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.12/site-packages/wandb/sdk/wandb_login.py", line 291, in _find_or_prompt_for_key
+    auth = wbauth.authenticate_session(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.12/site-packages/wandb/sdk/lib/wbauth/authenticate.py", line 141, in authenticate_session
+    raise UsageError(
+wandb.errors.errors.UsageError: No API key configured. Use `wandb login` to log in.
+/usr/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked shared_memory objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

@@ -1,0 +1,2 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10

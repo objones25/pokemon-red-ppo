@@ -1,0 +1,10 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+8cc309f Accept a refused read after deleting with a pod-scoped key
+18:39:19
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+train.sh: no WANDB_API_KEY, so W&B logs offline
+2026-11-04 18:39:39,183 INFO pokered.train: resumed from 1228800 env steps
+2026-11-04 18:40:50,281 INFO httpx: HTTP Request: GET https://api.runpod.io/v2/pods/qj5mh9fcd206dj "HTTP/1.1 200 OK"
+2026-11-04 18:40:50,990 INFO httpx: HTTP Request: DELETE https://api.runpod.io/v2/pods/qj5mh9fcd206dj "HTTP/1.1 204 No Content"
+2026-11-04 18:40:51,073 INFO httpx: HTTP Request: GET https://api.runpod.io/v2/pods/qj5mh9fcd206dj "HTTP/1.1 401 Unauthorized"
+Connection to <address> closed by remote host.

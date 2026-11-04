@@ -1,0 +1,10 @@
+{"label": "cpu0 alone", "n": 1, "fast": false, "total": 182, "mean": 182.3, "min": 182.3, "max": 182.3, "cpu_over_wall": 0.999, "pairs_like": [182]}
+{"label": "cpu0+1", "n": 2, "fast": false, "total": 378, "mean": 189.2, "min": 180.4, "max": 198.0, "cpu_over_wall": 1.0, "pairs_like": [180, 198]}
+{"label": "cpu0+2", "n": 2, "fast": false, "total": 361, "mean": 180.5, "min": 180.0, "max": 181.1, "cpu_over_wall": 1.0, "pairs_like": [180, 181]}
+{"label": "cpu0+126", "n": 2, "fast": false, "total": 387, "mean": 193.7, "min": 180.0, "max": 207.5, "cpu_over_wall": 0.999, "pairs_like": [180, 208]}
+{"label": "26 at 0-25", "n": 26, "fast": false, "total": 4494, "mean": 172.9, "min": 94.7, "max": 208.0, "cpu_over_wall": 0.94, "pairs_like": [177, 197, 175, 154, 173, 159]}
+{"label": "26 at even 0-50", "n": 26, "fast": false, "total": 4848, "mean": 186.5, "min": 170.3, "max": 212.3, "cpu_over_wall": 1.0, "pairs_like": [177, 210, 172, 176, 175, 177]}
+{"label": "26 at odd 1-51", "n": 26, "fast": false, "total": 4751, "mean": 182.7, "min": 157.3, "max": 205.7, "cpu_over_wall": 1.0, "pairs_like": [189, 196, 176, 204, 192, 174]}
+{"label": "26 spread every 9", "n": 26, "fast": false, "total": 4763, "mean": 183.2, "min": 170.0, "max": 218.0, "cpu_over_wall": 1.0, "pairs_like": [172, 170, 184, 174, 187, 177]}
+{"label": "26 unpinned", "n": 26, "fast": false, "total": 4606, "mean": 177.2, "min": 170.3, "max": 180.0, "cpu_over_wall": 1.0, "pairs_like": [172, 177, 179, 177, 178, 179]}
+throttle nr_periods 1697 nr_throttled 79 throttled_time 1073503406286 nr_bursts 0 burst_time 0 

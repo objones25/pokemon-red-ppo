@@ -1,0 +1,296 @@
+{
+ "mains": [
+  58258
+ ],
+ "gpu_bus": "00000000:00:06.0",
+ "gpu_numa_sysfs": "0",
+ "cgroup_cpu_max": "v1 quota 2635000",
+ "58258": {
+  "worker_count": 25,
+  "all_single_core": true,
+  "distinct_physical": true,
+  "all_on_gpu_node": true,
+  "ran_where_pinned": true,
+  "main_cores": [
+   91
+  ],
+  "main_shares_with_worker": false,
+  "workers": [
+   {
+    "pid": 58404,
+    "cores": [
+     25
+    ],
+    "single": true,
+    "siblings": "25",
+    "core_id": "25",
+    "last_ran_on": 25,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58405,
+    "cores": [
+     27
+    ],
+    "single": true,
+    "siblings": "27",
+    "core_id": "27",
+    "last_ran_on": 27,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58406,
+    "cores": [
+     31
+    ],
+    "single": true,
+    "siblings": "31",
+    "core_id": "31",
+    "last_ran_on": 31,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58407,
+    "cores": [
+     33
+    ],
+    "single": true,
+    "siblings": "33",
+    "core_id": "33",
+    "last_ran_on": 33,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58408,
+    "cores": [
+     35
+    ],
+    "single": true,
+    "siblings": "35",
+    "core_id": "35",
+    "last_ran_on": 35,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58409,
+    "cores": [
+     36
+    ],
+    "single": true,
+    "siblings": "36",
+    "core_id": "36",
+    "last_ran_on": 36,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58410,
+    "cores": [
+     42
+    ],
+    "single": true,
+    "siblings": "42",
+    "core_id": "42",
+    "last_ran_on": 42,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58411,
+    "cores": [
+     43
+    ],
+    "single": true,
+    "siblings": "43",
+    "core_id": "43",
+    "last_ran_on": 43,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58412,
+    "cores": [
+     45
+    ],
+    "single": true,
+    "siblings": "45",
+    "core_id": "45",
+    "last_ran_on": 45,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58413,
+    "cores": [
+     46
+    ],
+    "single": true,
+    "siblings": "46",
+    "core_id": "46",
+    "last_ran_on": 46,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58414,
+    "cores": [
+     47
+    ],
+    "single": true,
+    "siblings": "47",
+    "core_id": "47",
+    "last_ran_on": 47,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58415,
+    "cores": [
+     49
+    ],
+    "single": true,
+    "siblings": "49",
+    "core_id": "49",
+    "last_ran_on": 49,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58416,
+    "cores": [
+     54
+    ],
+    "single": true,
+    "siblings": "54",
+    "core_id": "54",
+    "last_ran_on": 54,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58417,
+    "cores": [
+     59
+    ],
+    "single": true,
+    "siblings": "59",
+    "core_id": "59",
+    "last_ran_on": 59,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58418,
+    "cores": [
+     60
+    ],
+    "single": true,
+    "siblings": "60",
+    "core_id": "60",
+    "last_ran_on": 60,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58419,
+    "cores": [
+     68
+    ],
+    "single": true,
+    "siblings": "68",
+    "core_id": "68",
+    "last_ran_on": 68,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58420,
+    "cores": [
+     75
+    ],
+    "single": true,
+    "siblings": "75",
+    "core_id": "75",
+    "last_ran_on": 75,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58421,
+    "cores": [
+     76
+    ],
+    "single": true,
+    "siblings": "76",
+    "core_id": "76",
+    "last_ran_on": 76,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58422,
+    "cores": [
+     77
+    ],
+    "single": true,
+    "siblings": "77",
+    "core_id": "77",
+    "last_ran_on": 77,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58423,
+    "cores": [
+     79
+    ],
+    "single": true,
+    "siblings": "79",
+    "core_id": "79",
+    "last_ran_on": 79,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58424,
+    "cores": [
+     80
+    ],
+    "single": true,
+    "siblings": "80",
+    "core_id": "80",
+    "last_ran_on": 80,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58425,
+    "cores": [
+     81
+    ],
+    "single": true,
+    "siblings": "81",
+    "core_id": "81",
+    "last_ran_on": 81,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58426,
+    "cores": [
+     82
+    ],
+    "single": true,
+    "siblings": "82",
+    "core_id": "82",
+    "last_ran_on": 82,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58427,
+    "cores": [
+     83
+    ],
+    "single": true,
+    "siblings": "83",
+    "core_id": "83",
+    "last_ran_on": 83,
+    "on_gpu_node": true
+   },
+   {
+    "pid": 58428,
+    "cores": [
+     86
+    ],
+    "single": true,
+    "siblings": "86",
+    "core_id": "86",
+    "last_ran_on": 86,
+    "on_gpu_node": true
+   }
+  ]
+ }
+}

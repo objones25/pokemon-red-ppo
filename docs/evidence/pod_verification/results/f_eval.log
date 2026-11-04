@@ -1,0 +1,2 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+2026-11-04 18:38:54,044 INFO pokered.evaluate: wrote /workspace/podverify/results/f_eval_main.json: {}

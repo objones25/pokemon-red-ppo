@@ -1,0 +1,2 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+2026-11-04 18:14:22,656 INFO pokered.evaluate: wrote /workspace/podverify/results/eval_acc_s1_in_accurate.json: {'milestone_viridian_city': 0.041666666666666664}

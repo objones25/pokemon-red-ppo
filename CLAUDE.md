@@ -17,9 +17,9 @@ PPO, atomic checkpoints with resume, W&B logging, pod shutdown, `scripts/setup.s
 A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique tiles and 4 events per episode against 73 and
 0 for random actions, though its episodes ran twice as long because events extend the budget, and it gained no levels.
 
-Not built yet: a fixed evaluator and milestone tracking. `scripts/setup.sh`, `scripts/train.sh` and CPU pinning have not
-run on a real pod. No full training has run. Keep this section and **Commands** in step with the code, and do not
-document commands that do not exist.
+`scripts/setup.sh`, `scripts/train.sh`, pinning, SIGTERM saves and self-deletion with the pod-scoped key have run on a real
+A100 pod (`docs/evidence/pod_verification/RESULTS.md`). Online W&B has not: no key was available. No full training has run.
+Keep this section and **Commands** in step with the code, and do not document commands that do not exist.
 
 ## Requirements
 
@@ -80,7 +80,7 @@ On a pod, with the repo on the `/workspace` volume and the ROM at `/workspace/ro
 
 ```bash
 scripts/setup.sh                                  # needs a mounted volume and the right ROM; asks for keys
-scripts/train.sh                                  # resumes, logs to W&B, deletes the pod when training ends
+scripts/train.sh                                  # resumes, logs to W&B (offline without a key), deletes the pod when training ends
 ```
 
 Locally: `uv run pokered-train --env.rom "Pokemon Red.gb" --wandb-mode offline`.
@@ -137,8 +137,9 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 - **Use `pyboy.stop(save=False)`.** The default writes a `.ram` file next to the ROM, and a later run would load it.
 - **Don't commit the ROM.** It is gitignored, so a pod needs its own copy on the volume.
 - **Evaluate with sampled actions.** The emulator is deterministic, so a deterministic policy repeats one episode.
-- **`fast_mode=True` is unproven.** It is about 2.85x faster and game memory matched for 20,000 steps, but only around
-  Pallet Town and Route 1, and some screen pixels differ. Validate it on real trajectories before using it.
+- **`fast_mode=True` is safe on PyBoy 2.9.0, as far as tested.** About 2-2.3x the throughput on a pod. WRAM, HRAM, map, events
+  and rewards matched at every decision over 345,000 steps, into Viridian Forest and through battles, menus and heals. The
+  screen differs on 1-8% of steps, mostly the same picture one frame sooner. Re-test if PyBoy changes.
 
 ## GPU and Runpod
 
@@ -147,8 +148,11 @@ PyBoy runs on the CPU, so **a GPU only speeds up the policy**. Measured on an A1
 the M4 Pro, because each emulator step takes about 6.4 ms against about 2.1–2.6 ms. A larger model or more epochs raise
 utilization but cost throughput and have no proven learning benefit, so don't add them for utilization alone.
 
-On a pod, read the real CPU limit from the cgroup rather than the API (32 vCPUs reported, 27.2 usable on that host), use
-one worker per usable core at most (26 there), and pin workers to physical cores on the GPU's NUMA node (`--pin-workers`).
+On a pod, read the real CPU limit from the cgroup rather than the API (32 vCPUs reported, 27.2 usable on that host; 31 and
+26.35 on another, whose limit is in cgroup v1 files), use one worker per usable core at most, and pin workers to the
+quietest physical cores on the GPU's NUMA node (`--pin-workers`): other tenants' load made the lowest CPUs 40% slower on a shared host.
+
+A second host, an A100 PCIe with an EPYC 7763 VM, ran `pokered-train` at about 3,000 steps/s accurate and 6,300 with `--env.fast-mode`, k=8, T=512.
 
 The user's separate `massively-parallel-rl` project (`~/Desktop/CS291K/massively-parallel-rl`) is the working example. Follow these parts of it:
 

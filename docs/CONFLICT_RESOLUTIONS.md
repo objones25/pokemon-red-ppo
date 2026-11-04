@@ -148,6 +148,10 @@ Idle power is 68 W. Update speed relative to the M4 Pro: Nature 1.7×, IMPALA ×
 
 **So this pod trains about 11% faster than the M4 Pro** (2,966 vs 2,667 steps/s), because its emulator steps are about 3× slower. At $1.39/h, 400M steps is about 37.5 hours and $52. The pinned configs ran once each, only 2–4 PPO cycles per window, and on one host; other A100 machines may differ. `fast_mode` was not measured on the pod.
 
+### A second pod, 2026-11-04
+
+A100 PCIe 80GB, Secure Cloud, CA-MTL-3, $1.79/h, EPYC 7763 as a VM, 26.35 usable vCPUs. Real `pokered-train`: k=8, T=512 runs at 3,002 steps/s, T=2048 at 2,896, T=128 at 2,840, and k=32, T=64 at 3,161. With `--env.fast-mode`, T=512 ran at 6,303, T=128 at 5,652, and k=32, T=64 at 7,232; T=2048 wasn't run in that mode. The update is about 3.5% of the time, so T barely changes speed here, and `train.sh` now defaults to T=2048. Pinning to the lowest CPUs cost about 40% because other tenants used them; `pokered.affinity` now picks by measured load. Raw results: `docs/evidence/pod_verification/`.
+
 ## 9. Inference device
 
 At 12 envs, CPU inference beats MPS by 29% (2,243 vs 1,739 steps/s). At 96 envs, MPS beats CPU by 37% (2,667 vs 1,952). The update belongs on MPS either way: a CPU update takes 66% of wall time and costs about 12× more per sample.
@@ -167,4 +171,4 @@ At 12 envs, CPU inference beats MPS by 29% (2,243 vs 1,739 steps/s). At 96 envs,
 
 - Whether the level reward, a latched heal or the level cap helps from our start state.
 - Whether a larger model learns better.
-- Whether `fast_mode` is safe late in the game. It matched for 20,000 steps, covering only early maps and 317 battle steps.
+- Whether `fast_mode` is safe late in the game under real play. It matched over 345,000 steps with no memory divergence, into Viridian Forest, and on later maps reached by writing memory (`docs/evidence/pod_verification/RESULTS.md`). Two seeds show no learning effect, and more would be needed to rule out a small one.

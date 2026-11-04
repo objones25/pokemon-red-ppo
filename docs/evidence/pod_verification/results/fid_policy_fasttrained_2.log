@@ -1,0 +1,2 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+policy_seed1002 steps 12000 s 717.4 maps [0, 12, 37, 38, 39, 40] first {} tiles [463, 463] events [4, 4]

@@ -1,0 +1,3 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+heal resync steps 594 s 36.0 non_rng 0 first {}
+heal open steps 594 s 4.8 non_rng 0 first {}

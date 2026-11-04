@@ -1,0 +1,4 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+train.sh: no WANDB_API_KEY, so W&B logs offline
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+2026-11-04 18:31:32,403 INFO pokered.train: resumed from 1024000 env steps

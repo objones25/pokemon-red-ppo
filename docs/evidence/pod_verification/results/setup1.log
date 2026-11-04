@@ -1,0 +1,72 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+Using CPython 3.12.3 interpreter at: /usr/bin/python3.12
+Creating virtual environment at: /opt/venv
+Activate with: source /opt/venv/bin/activate
+   Building pokered-ppo @ file:///workspace/pokemon-red-ppo
+Downloading numpy (16.0MiB)
+Downloading pydantic-core (2.1MiB)
+Downloading pysdl2-dll (5.0MiB)
+Downloading wandb (19.4MiB)
+Downloading pyboy (29.3MiB)
+ Downloaded pydantic-core
+ Downloaded pysdl2-dll
+ Downloaded wandb
+ Downloaded numpy
+      Built pokered-ppo @ file:///workspace/pokemon-red-ppo
+ Downloaded pyboy
+Prepared 44 packages in 1.34s
+Installed 44 packages in 640ms
+ + annotated-types==0.8.0
+ + anyio==4.16.0
+ + certifi==2026.10.23
+ + charset-normalizer==3.5.2
+ + click==8.5.0
+ + cloudpickle==3.1.2
+ + cwevals==0.0.1b1
+ + distro==1.9.0
+ + docstring-parser==0.18.0
+ + farama-notifications==0.0.6
+ + googleapis-common-protos==1.76.0
+ + gymnasium==1.4.0
+ + h11==0.16.0
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + idna==3.20
+ + numpy==2.5.4
+ + opentelemetry-api==1.45.2
+ + opentelemetry-exporter-http-transport==0.66b2
+ + opentelemetry-exporter-otlp-common==0.66b2
+ + opentelemetry-exporter-otlp-proto-common==1.45.2
+ + opentelemetry-exporter-otlp-proto-http==1.45.2
+ + opentelemetry-proto==1.45.2
+ + opentelemetry-sdk==1.45.2
+ + opentelemetry-semantic-conventions==0.66b2
+ + packaging==26.3
+ + platformdirs==4.14.3
+ + pokered-ppo==0.1.0 (from file:///workspace/pokemon-red-ppo)
+ + protobuf==7.36.2
+ + pyboy==2.9.0
+ + pydantic==2.14.2
+ + pydantic-core==2.50.2
+ + pysdl2==0.9.17
+ + pysdl2-dll==2.32.10
+ + pyyaml==6.0.3
+ + requests==2.34.2
+ + sniffio==1.3.1
+ + typeguard==4.6.0
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.4
+ + tyro==1.0.16
+ + urllib3==2.8.0
+ + wandb==0.31.0
+ + xxhash==4.0.2
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+torch 2.13.0+cu130 cuda True
+WANDB_API_KEY: 
+WANDB_ENTITY: 
+RUNPOD_API_KEY: 
+setup.sh: ready; start training with scripts/train.sh
+
+real	0m7.721s
+user	0m10.151s
+sys	0m5.765s

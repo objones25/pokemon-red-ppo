@@ -1,0 +1,3 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+text resync steps 6000 s 359.7 non_rng 0 first {}
+text open steps 6000 s 49.7 non_rng 0 first {}

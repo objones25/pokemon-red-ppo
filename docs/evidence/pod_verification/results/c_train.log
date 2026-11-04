@@ -1,0 +1,43 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8)
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+2026-11-04 16:10:21,570 INFO pokered.train: resumed from 614400 env steps
+Traceback (most recent call last):
+  File "/opt/venv/bin/pokered-train", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 212, in main
+    run_guarded(partial(_run, config), terminator)
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 60, in run_guarded
+    work()
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 240, in _run
+    train(config, ActorCritic(), envs, logger, store, device)
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 167, in train
+    episodes = collect_rollout(model, envs, rollout, device)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/ppo.py", line 110, in collect_rollout
+    result = envs.step(actions.cpu().numpy())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/vec.py", line 161, in step
+    episodes = self._exchange(_STEP)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/vec.py", line 175, in _exchange
+    if not connection.poll(_REPLY_TIMEOUT_S):
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 257, in poll
+    return self._poll(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 440, in _poll
+    r = wait([self], timeout)
+        ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/multiprocessing/connection.py", line 1136, in wait
+    ready = selector.select(timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pokemon-red-ppo/src/pokered/train.py", line 55, in on_sigterm
+    raise PodStopping("received SIGTERM")
+pokered.train.PodStopping: received SIGTERM

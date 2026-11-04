@@ -1,0 +1,12 @@
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 1881, "ms_per_step": 106.32, "to_device": 0.92, "infer": 8.1, "sample": 0.04, "store": 0.74, "step": 96.51}
+{"workers": 25, "k": 8, "threads": 1, "pin": true, "fast": false, "sps": 1833, "ms_per_step": 109.12, "to_device": 0.81, "infer": 8.07, "sample": 0.04, "store": 0.72, "step": 99.47}
+{"workers": 25, "k": 8, "threads": 4, "pin": false, "fast": false, "sps": 3095, "ms_per_step": 64.61, "to_device": 0.7, "infer": 7.42, "sample": 0.04, "store": 0.64, "step": 55.8}
+set 26-60
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 3223, "ms_per_step": 62.05, "to_device": 1.18, "infer": 6.86, "sample": 0.04, "store": 0.53, "step": 53.44}
+set 64-100
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 3338, "ms_per_step": 59.91, "to_device": 1.31, "infer": 6.41, "sample": 0.03, "store": 0.46, "step": 51.69}
+set 130-170
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 3273, "ms_per_step": 61.1, "to_device": 1.5, "infer": 6.81, "sample": 0.04, "store": 0.54, "step": 52.21}
+set 200-240
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 2997, "ms_per_step": 66.73, "to_device": 0.9, "infer": 11.16, "sample": 0.06, "store": 0.97, "step": 53.63}
+{"workers": 25, "k": 8, "threads": 4, "pin": true, "fast": false, "sps": 3083, "ms_per_step": 64.87, "to_device": 0.83, "infer": 7.79, "sample": 0.04, "store": 0.68, "step": 55.53}

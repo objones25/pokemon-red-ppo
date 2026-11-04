@@ -1,0 +1,13 @@
+UserWarning: Using SDL2 binaries from pysdl2-dll 2.32.10
+11 of 2500
+{'step': 9, 'action': 0, 'counts_by_offset': {-2: 21605, -1: 2517, 0: 117, 1: 7594, 2: 7679}, 'rows': [7, 143], 'cols': [1, 159], 'battle': 0, 'map': 0, 'acc_changes_each_frame': [0, 19287, 2400, 7711]}
+{'step': 51, 'action': 0, 'counts_by_offset': {-2: 21725, -1: 2099, 0: 94, 1: 6358, 2: 6358}, 'rows': [0, 143], 'cols': [0, 159], 'battle': 0, 'map': 0, 'acc_changes_each_frame': [0, 19714, 2005, 6432]}
+{'step': 670, 'action': 3, 'counts_by_offset': {-2: 21538, -1: 3278, 0: 118, 1: 5943, 2: 6031}, 'rows': [0, 143], 'cols': [0, 159], 'battle': 0, 'map': 0, 'acc_changes_each_frame': [0, 18441, 3160, 6061]}
+{'step': 802, 'action': 3, 'counts_by_offset': {-2: 1325, -1: 1113, 0: 220, 1: 907, 2: 1368}, 'rows': [21, 95], 'cols': [0, 159], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [857, 961, 1037, 1127]}
+{'step': 803, 'action': 1, 'counts_by_offset': {-2: 1997, -1: 1601, 0: 280, 1: 1217, 2: 1761}, 'rows': [21, 95], 'cols': [38, 129], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [1497, 1497, 1497, 1497]}
+{'step': 804, 'action': 1, 'counts_by_offset': {-2: 1997, -1: 1601, 0: 280, 1: 1217, 2: 1761}, 'rows': [21, 95], 'cols': [24, 119], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [1497, 1497, 1497, 1497]}
+{'step': 1622, 'action': 3, 'counts_by_offset': {-2: 21523, -1: 2069, 0: 109, 1: 5943, 2: 6076}, 'rows': [0, 143], 'cols': [0, 159], 'battle': 0, 'map': 0, 'acc_changes_each_frame': [0, 19641, 1960, 6052]}
+{'step': 1811, 'action': 3, 'counts_by_offset': {-2: 4878, -1: 455, 0: 192, 1: 10634, 2: 11486}, 'rows': [10, 143], 'cols': [0, 159], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [21, 4535, 375, 10762]}
+{'step': 1817, 'action': 3, 'counts_by_offset': {-2: 1171, -1: 938, 0: 184, 1: 788, 2: 1209}, 'rows': [26, 95], 'cols': [0, 159], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [679, 772, 874, 972]}
+{'step': 1818, 'action': 1, 'counts_by_offset': {-2: 1941, -1: 1526, 0: 280, 1: 1142, 2: 1705}, 'rows': [26, 95], 'cols': [39, 133], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [1422, 1422, 1422, 1422]}
+{'step': 1819, 'action': 0, 'counts_by_offset': {-2: 1941, -1: 1526, 0: 280, 1: 1142, 2: 1705}, 'rows': [26, 95], 'cols': [28, 121], 'battle': 1, 'map': 12, 'acc_changes_each_frame': [1421, 1422, 1422, 1422]}
