@@ -39,7 +39,8 @@ the cause.
   the first-episode stagger spreads only up to `base_budget` (10,240) of about 80,000 steps. The first run did not:
   from 340M to 400M, 1 to 9 episodes finished at every one of 188 updates. So all envs in an arm meet Misty at about
   the same time and within a few updates of each other, which training's mixed batches never do. The updating arm's
-  second wave (30.5%) is unexplained and may come from that.
+  second wave (30.5%) is unexplained and may come from that. Since fixed: the first episode now keeps a random
+  fraction of its whole budget, event extensions included.
 - One seed per arm.
 - The new level reward (per place, capped at the gym ace) applied to both arms, and changes the updating arm's
   gradient slightly from training's.

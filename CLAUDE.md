@@ -146,6 +146,9 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 - **Battle animations off saves little by itself.** It cut only one decision (24 frames) from the first attack, and the
   start state already has fast text.
 - **Blackouts:** `D057` reads `FF`, then HP fully restores and money halves. Treat as battle, never as healing. The game clears `D057` when a battle ends and only then writes `FF`, so the marker can arrive after the fight looks over: `EpisodeTelemetry` credits it to the last fight.
+- **Envs that reset together stay together.** The first episode keeps a random fraction of its whole budget, event
+  extensions included. Shortening only the base budget left `--init-from` runs finishing episodes in waves of about 150,
+  so every batch held one part of the game.
 - **Use `pyboy.stop(save=False)`.** The default writes a `.ram` file next to the ROM, and a later run would load it.
 - **Don't commit the ROM.** It is gitignored, so a pod needs its own copy on the volume.
 - **Evaluate with sampled actions.** The emulator is deterministic, so a deterministic policy repeats one episode.

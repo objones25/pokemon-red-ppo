@@ -73,6 +73,25 @@ def test_first_episode_is_staggered_by_seed(make_env):
     assert len(budgets) == 4
 
 
+@pytest.mark.parametrize("seed", [0, 1, 2, 3])
+def test_first_episode_shortens_the_event_extension_in_proportion(make_env, seed):
+    env = make_env(base_budget=1_000, budget_per_event=1_000)
+    env.reset(seed=seed)
+    assert env.budget_for(events_gained=9) == pytest.approx(10 * env.budget_for(events_gained=0), abs=10)
+
+
+def test_first_episodes_can_end_early_in_an_episode_extended_by_events(make_env):
+    """A trained agent's episodes run about 80,000 steps; staggering only the base budget would end every first one
+    in the last 10,240 of them, so all envs would reach the same part of the game together."""
+    full = 10_240 + 2_048 * 30
+    budgets = []
+    for seed in range(8):
+        env = make_env(base_budget=10_240, budget_per_event=2_048)
+        env.reset(seed=seed)
+        budgets.append(env.budget_for(events_gained=30))
+    assert min(budgets) < full // 2
+
+
 def test_second_episode_has_the_full_budget(make_env):
     env = make_env(base_budget=10_000)
     env.reset(seed=1)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import math
 from typing import Any
 
 import gymnasium as gym
@@ -39,19 +40,25 @@ class PokemonRedEnv(gym.Env):
         self._last_stall: Snapshot | None = None
         self._stack = FrameStack()
         self._visited = VisitedMap()
-        self._base_budget = config.base_budget
+        self._budget_fraction = 1.0
         self._first_episode = True
         self._steps = 0
 
     def budget_for(self, events_gained: int) -> int:
         require(events_gained >= 0, f"events gained cannot be negative, got {events_gained}")
-        return self._base_budget + self._config.budget_per_event * events_gained
+        full = self._config.base_budget + self._config.budget_per_event * events_gained
+        budget = max(1, math.ceil(self._budget_fraction * full))
+        require(budget <= full, f"budget {budget} exceeds the full budget {full}")
+        return budget
 
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         super().reset(seed=seed, options=options)
-        # A shortened first episode keeps envs from all resetting together, including after a resume.
+        # The first episode keeps a random fraction of its whole budget, event extensions included, so first episodes
+        # end anywhere in a full one and envs never reach the same part of the game together, even after a resume or
+        # --init-from. Shortening only the base budget spread them over 10,240 of a trained agent's ~80,000 steps.
         stagger = self._first_episode and self._config.stagger_first_episode
-        self._base_budget = int(self.np_random.integers(1, self._config.base_budget + 1)) if stagger else self._config.base_budget
+        self._budget_fraction = 1.0 - float(self.np_random.uniform()) if stagger else 1.0
+        require(0.0 < self._budget_fraction <= 1.0, f"budget fraction {self._budget_fraction} is outside (0, 1]")
         self._first_episode = False
         restore(self.pyboy, self._state, battle_animations=self._config.battle_animations)
         frame = read_frame(self.pyboy.memory)
