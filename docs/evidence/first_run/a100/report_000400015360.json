@@ -1,0 +1,2496 @@
+{
+  "step": 400015360,
+  "scalars": {
+    "progress/episodes": 96.0,
+    "progress/tiles_mean": 5614.895833333333,
+    "progress/tiles_max": 6519,
+    "progress/events_mean": 32.625,
+    "progress/events_max": 36,
+    "progress/badges_mean": 1.2604166666666667,
+    "progress/badges_max": 2,
+    "progress/max_level_mean": 26.270833333333332,
+    "progress/max_level_max": 30,
+    "progress/party_size_mean": 1.9479166666666667,
+    "progress/fights_mean": 221.14583333333334,
+    "progress/blackouts_mean": 8.333333333333334,
+    "progress/dry_steps_mean": 44049.635416666664,
+    "story/viridian_city_rate": 1.0,
+    "story/viridian_city_median_step": 206.5,
+    "story/viridian_forest_rate": 1.0,
+    "story/viridian_forest_median_step": 306.0,
+    "story/pewter_city_rate": 1.0,
+    "story/pewter_city_median_step": 1712.5,
+    "story/beat_brock_rate": 1.0,
+    "story/beat_brock_median_step": 3564.0,
+    "story/mt_moon_rate": 0.96875,
+    "story/mt_moon_median_step": 7231.0,
+    "story/cerulean_city_rate": 0.9270833333333334,
+    "story/cerulean_city_median_step": 19396.0,
+    "story/beat_misty_rate": 0.2604166666666667,
+    "story/beat_misty_median_step": 42253.0,
+    "story/beat_cerulean_rival_rate": 0.0,
+    "story/beat_route24_rocket_rate": 0.0,
+    "story/bill_restored_rate": 0.0,
+    "story/got_ss_ticket_rate": 0.0,
+    "story/trashed_house_rate": 0.0,
+    "story/beat_cerulean_rocket_rate": 0.0,
+    "story/route_5_rate": 0.0,
+    "story/route_6_rate": 0.0,
+    "story/vermilion_city_rate": 0.0,
+    "story/ss_anne_rate": 0.0,
+    "story/got_hm01_rate": 0.0,
+    "story/knows_cut_rate": 0.0,
+    "story/beat_lt_surge_rate": 0.0,
+    "story/got_bicycle_rate": 0.0,
+    "story/celadon_city_rate": 0.0,
+    "story/beat_erika_rate": 0.0,
+    "story/beat_hideout_giovanni_rate": 0.0,
+    "story/has_silph_scope_rate": 0.0,
+    "story/rescued_fuji_rate": 0.0,
+    "story/got_poke_flute_rate": 0.0,
+    "story/beat_silph_giovanni_rate": 0.0,
+    "story/beat_sabrina_rate": 0.0,
+    "story/beat_koga_rate": 0.0,
+    "story/got_hm03_rate": 0.0,
+    "story/got_hm04_rate": 0.0,
+    "story/beat_blaine_rate": 0.0,
+    "story/beat_giovanni_rate": 0.0,
+    "story/beat_lorelei_rate": 0.0,
+    "story/beat_champion_rate": 0.0,
+    "actions/down": 0.12462851692275748,
+    "actions/left": 0.29872484513427466,
+    "actions/right": 0.19047308126557308,
+    "actions/up": 0.1558824372317968,
+    "actions/a": 0.06199103574024086,
+    "actions/b": 0.13462192539624862,
+    "actions/start": 0.03367815830910853,
+    "reward/badge": 6.302083333333333,
+    "reward/event": 65.25,
+    "reward/explore": 28.074479166667132,
+    "reward/level": 10.213541666666666,
+    "progress/lost_fights_mean": 8.333333333333334
+  },
+  "tables": {
+    "flags": {
+      "columns": [
+        "flag",
+        "address",
+        "bit",
+        "rate",
+        "median_step"
+      ],
+      "rows": [
+        [
+          "0x019",
+          "0xD74A",
+          1,
+          1.0,
+          27.0
+        ],
+        [
+          "0x018",
+          "0xD74A",
+          0,
+          1.0,
+          43.0
+        ],
+        [
+          "0x01A",
+          "0xD74A",
+          2,
+          1.0,
+          49.0
+        ],
+        [
+          "0x562",
+          "0xD7F3",
+          2,
+          1.0,
+          642.0
+        ],
+        [
+          "0x563",
+          "0xD7F3",
+          3,
+          1.0,
+          1017.5
+        ],
+        [
+          "0x564",
+          "0xD7F3",
+          4,
+          1.0,
+          1651.0
+        ],
+        [
+          "0x072",
+          "0xD755",
+          2,
+          1.0,
+          3110.5
+        ],
+        [
+          "0x077",
+          "0xD755",
+          7,
+          1.0,
+          3564.0
+        ],
+        [
+          "0x076",
+          "0xD755",
+          6,
+          1.0,
+          3597.0
+        ],
+        [
+          "0x3E2",
+          "0xD7C3",
+          2,
+          1.0,
+          4580.5
+        ],
+        [
+          "0x3E3",
+          "0xD7C3",
+          3,
+          1.0,
+          5298.0
+        ],
+        [
+          "0x3C0",
+          "0xD7BF",
+          0,
+          0.9791666666666666,
+          80.0
+        ],
+        [
+          "0x3E6",
+          "0xD7C3",
+          6,
+          0.9791666666666666,
+          5917.5
+        ],
+        [
+          "0x3E5",
+          "0xD7C3",
+          5,
+          0.9791666666666666,
+          6181.5
+        ],
+        [
+          "0x3E8",
+          "0xD7C4",
+          0,
+          0.9791666666666666,
+          6439.0
+        ],
+        [
+          "0x3E4",
+          "0xD7C3",
+          4,
+          0.9791666666666666,
+          7217.0
+        ],
+        [
+          "0x3E9",
+          "0xD7C4",
+          1,
+          0.96875,
+          7079.0
+        ],
+        [
+          "0x576",
+          "0xD7F5",
+          6,
+          0.96875,
+          7640.0
+        ],
+        [
+          "0x3E7",
+          "0xD7C3",
+          7,
+          0.96875,
+          8738.0
+        ],
+        [
+          "0x575",
+          "0xD7F5",
+          5,
+          0.96875,
+          8964.0
+        ],
+        [
+          "0x577",
+          "0xD7F5",
+          7,
+          0.9583333333333334,
+          8756.0
+        ],
+        [
+          "0x573",
+          "0xD7F5",
+          3,
+          0.9583333333333334,
+          15399.0
+        ],
+        [
+          "0x3FF",
+          "0xD7C6",
+          7,
+          0.9479166666666666,
+          7206.0
+        ],
+        [
+          "0x574",
+          "0xD7F5",
+          4,
+          0.9479166666666666,
+          9602.0
+        ],
+        [
+          "0x571",
+          "0xD7F5",
+          1,
+          0.9479166666666666,
+          11727.0
+        ],
+        [
+          "0x068",
+          "0xD754",
+          0,
+          0.9479166666666666,
+          13862.0
+        ],
+        [
+          "0x572",
+          "0xD7F5",
+          2,
+          0.9375,
+          11581.0
+        ],
+        [
+          "0x57A",
+          "0xD7F6",
+          2,
+          0.9375,
+          14272.0
+        ],
+        [
+          "0x579",
+          "0xD7F6",
+          1,
+          0.9270833333333334,
+          19226.0
+        ],
+        [
+          "0x57F",
+          "0xD7F6",
+          7,
+          0.9270833333333334,
+          19238.0
+        ],
+        [
+          "0x57C",
+          "0xD7F6",
+          4,
+          0.90625,
+          16658.0
+        ],
+        [
+          "0x0BB",
+          "0xD75E",
+          3,
+          0.8958333333333334,
+          23299.5
+        ],
+        [
+          "0x0BA",
+          "0xD75E",
+          2,
+          0.84375,
+          26619.0
+        ],
+        [
+          "0x57B",
+          "0xD7F6",
+          3,
+          0.6145833333333334,
+          11569.0
+        ],
+        [
+          "0x57D",
+          "0xD7F6",
+          5,
+          0.5833333333333334,
+          18881.5
+        ],
+        [
+          "0x0BF",
+          "0xD75E",
+          7,
+          0.2604166666666667,
+          42253.0
+        ],
+        [
+          "0x0BE",
+          "0xD75E",
+          6,
+          0.2604166666666667,
+          42259.0
+        ]
+      ]
+    },
+    "fights": {
+      "columns": [
+        "opponent",
+        "map_id",
+        "fought_per_episode",
+        "lost_per_episode",
+        "loss_rate",
+        "mean_party_max_level"
+      ],
+      "rows": [
+        [
+          "MISTY#1",
+          65,
+          2.1145833333333335,
+          1.8229166666666667,
+          0.8620689655172413,
+          25.93103448275862
+        ],
+        [
+          "SWIMMER#1",
+          65,
+          1.65625,
+          0.7604166666666666,
+          0.4591194968553459,
+          23.11949685534591
+        ],
+        [
+          "JR_TRAINER_M#1",
+          54,
+          1.59375,
+          0.59375,
+          0.37254901960784315,
+          10.437908496732026
+        ],
+        [
+          "JR_TRAINER_F#1",
+          65,
+          1.3541666666666667,
+          0.5104166666666666,
+          0.3769230769230769,
+          24.276923076923076
+        ],
+        [
+          "ROCKET#4",
+          61,
+          0.9895833333333334,
+          0.40625,
+          0.4105263157894737,
+          22.05263157894737
+        ],
+        [
+          "LASS#1",
+          14,
+          1.3645833333333333,
+          0.3854166666666667,
+          0.2824427480916031,
+          16.12213740458015
+        ],
+        [
+          "SUPER_NERD#2",
+          61,
+          1.3020833333333333,
+          0.375,
+          0.288,
+          22.056
+        ],
+        [
+          "YOUNGSTER#1",
+          14,
+          1.34375,
+          0.34375,
+          0.2558139534883721,
+          14.891472868217054
+        ],
+        [
+          "LASS#3",
+          14,
+          1.3125,
+          0.34375,
+          0.2619047619047619,
+          17.333333333333332
+        ],
+        [
+          "LASS#5",
+          59,
+          1.2916666666666667,
+          0.3333333333333333,
+          0.25806451612903225,
+          20.951612903225808
+        ],
+        [
+          "ROCKET#1",
+          61,
+          1.25,
+          0.3125,
+          0.25,
+          21.291666666666668
+        ],
+        [
+          "YOUNGSTER#3",
+          59,
+          1.1770833333333333,
+          0.23958333333333334,
+          0.20353982300884957,
+          19.884955752212388
+        ],
+        [
+          "BUG_CATCHER#4",
+          14,
+          1.2291666666666667,
+          0.22916666666666666,
+          0.1864406779661017,
+          14.127118644067796
+        ],
+        [
+          "SUPER_NERD#1",
+          59,
+          1.1770833333333333,
+          0.22916666666666666,
+          0.19469026548672566,
+          19.300884955752213
+        ],
+        [
+          "BROCK#1",
+          54,
+          1.21875,
+          0.21875,
+          0.1794871794871795,
+          12.538461538461538
+        ],
+        [
+          "BUG_CATCHER#2",
+          51,
+          1.1770833333333333,
+          0.17708333333333334,
+          0.1504424778761062,
+          8.584070796460177
+        ],
+        [
+          "LASS#2",
+          14,
+          1.1458333333333333,
+          0.16666666666666666,
+          0.14545454545454545,
+          15.7
+        ],
+        [
+          "BUG_CATCHER#8",
+          59,
+          1.1145833333333333,
+          0.15625,
+          0.14018691588785046,
+          18.869158878504674
+        ],
+        [
+          "LASS#6",
+          59,
+          1.1041666666666667,
+          0.13541666666666666,
+          0.12264150943396226,
+          18.42452830188679
+        ],
+        [
+          "ROCKET#3",
+          61,
+          1.0,
+          0.09375,
+          0.09375,
+          21.729166666666668
+        ],
+        [
+          "RIVAL1#5",
+          33,
+          0.09375,
+          0.09375,
+          1.0,
+          11.0
+        ],
+        [
+          "YOUNGSTER#2",
+          14,
+          1.0416666666666667,
+          0.07291666666666667,
+          0.07,
+          18.08
+        ],
+        [
+          "ROCKET#2",
+          61,
+          0.6875,
+          0.07291666666666667,
+          0.10606060606060606,
+          19.893939393939394
+        ],
+        [
+          "BUG_CATCHER#5",
+          14,
+          1.0416666666666667,
+          0.0625,
+          0.06,
+          16.2
+        ],
+        [
+          "BUG_CATCHER#6",
+          14,
+          1.0208333333333333,
+          0.041666666666666664,
+          0.04081632653061224,
+          16.877551020408163
+        ],
+        [
+          "wild@61",
+          61,
+          42.583333333333336,
+          0.03125,
+          0.0007338551859099804,
+          24.287181996086105
+        ],
+        [
+          "wild@15",
+          15,
+          1.1354166666666667,
+          0.03125,
+          0.027522935779816515,
+          23.6697247706422
+        ],
+        [
+          "BUG_CATCHER#1",
+          51,
+          1.03125,
+          0.03125,
+          0.030303030303030304,
+          6.03030303030303
+        ],
+        [
+          "wild@59",
+          59,
+          64.34375,
+          0.020833333333333332,
+          0.00032378177108628785,
+          24.185203173061357
+        ],
+        [
+          "RIVAL1#8",
+          3,
+          0.020833333333333332,
+          0.020833333333333332,
+          1.0,
+          25.5
+        ],
+        [
+          "wild@60",
+          60,
+          19.927083333333332,
+          0.010416666666666666,
+          0.0005227391531625719,
+          24.51385258755881
+        ],
+        [
+          "BUG_CATCHER#7",
+          59,
+          0.9791666666666666,
+          0.010416666666666666,
+          0.010638297872340425,
+          17.851063829787233
+        ],
+        [
+          "wild@12",
+          12,
+          23.59375,
+          0.0,
+          0.0,
+          18.62384105960265
+        ],
+        [
+          "wild@51",
+          51,
+          19.416666666666668,
+          0.0,
+          0.0,
+          21.140557939914164
+        ],
+        [
+          "wild@13",
+          13,
+          7.052083333333333,
+          0.0,
+          0.0,
+          22.870014771048744
+        ],
+        [
+          "wild@33",
+          33,
+          5.697916666666667,
+          0.0,
+          0.0,
+          22.586837294332724
+        ],
+        [
+          "wild@14",
+          14,
+          3.5833333333333335,
+          0.0,
+          0.0,
+          24.90988372093023
+        ],
+        [
+          "BUG_CATCHER#3",
+          51,
+          1.0,
+          0.0,
+          0.0,
+          9.625
+        ],
+        [
+          "HIKER#1",
+          59,
+          0.9479166666666666,
+          0.0,
+          0.0,
+          20.186813186813186
+        ],
+        [
+          "wild@1",
+          1,
+          0.03125,
+          0.0,
+          0.0,
+          18.666666666666668
+        ]
+      ]
+    },
+    "maps": {
+      "columns": [
+        "map_id",
+        "step_share",
+        "end_share",
+        "stall_share",
+        "entropy",
+        "value_error"
+      ],
+      "rows": [
+        [
+          33,
+          0.2431518960236711,
+          0.3541666666666667,
+          0.2916666666666667,
+          null,
+          null
+        ],
+        [
+          65,
+          0.15864301071082504,
+          0.2916666666666667,
+          0.28125,
+          null,
+          null
+        ],
+        [
+          1,
+          0.12451523350982835,
+          0.15625,
+          0.17708333333333334,
+          null,
+          null
+        ],
+        [
+          59,
+          0.07765375181686046,
+          0.020833333333333332,
+          0.07291666666666667,
+          null,
+          null
+        ],
+        [
+          54,
+          0.06519528005606312,
+          0.09375,
+          0.0625,
+          null,
+          null
+        ],
+        [
+          61,
+          0.0544503888946567,
+          0.0,
+          0.041666666666666664,
+          null,
+          null
+        ],
+        [
+          51,
+          0.05284198072397564,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          14,
+          0.04064616966881229,
+          0.0,
+          0.010416666666666666,
+          null,
+          null
+        ],
+        [
+          12,
+          0.028099828912306203,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          2,
+          0.026143865067829456,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          60,
+          0.021143308113579735,
+          0.020833333333333332,
+          0.020833333333333332,
+          null,
+          null
+        ],
+        [
+          15,
+          0.01827391226294297,
+          0.0,
+          0.010416666666666666,
+          null,
+          null
+        ],
+        [
+          13,
+          0.016953444032045958,
+          0.0,
+          0.010416666666666666,
+          null,
+          null
+        ],
+        [
+          0,
+          0.016397841613026026,
+          0.010416666666666666,
+          0.0,
+          null,
+          null
+        ],
+        [
+          68,
+          0.009030499463593578,
+          0.041666666666666664,
+          0.010416666666666666,
+          null,
+          null
+        ],
+        [
+          40,
+          0.006116087650539867,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          3,
+          0.005739873165836102,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          42,
+          0.004503759170819491,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          52,
+          0.003596140036683278,
+          0.010416666666666666,
+          0.010416666666666666,
+          null,
+          null
+        ],
+        [
+          39,
+          0.003558559143133998,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          50,
+          0.0033613270435354373,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          47,
+          0.003114077207918051,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          41,
+          0.0021295389067691028,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          53,
+          0.0020628936531007754,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          38,
+          0.002031395997715947,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          37,
+          0.0019679951377353268,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          56,
+          0.001414014915559247,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          44,
+          0.001412257535645072,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          58,
+          0.0012960000951688815,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          43,
+          0.001159194828003876,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          193,
+          0.0011589244618632336,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          57,
+          0.0007855488216362126,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          55,
+          0.0006813226744186047,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          34,
+          0.0006683450996677741,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          230,
+          6.177866313676633e-05,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          63,
+          1.3653490102436324e-05,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          67,
+          1.2436842469545958e-05,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          64,
+          8.381350359911407e-06,
+          0.0,
+          0.0,
+          null,
+          null
+        ],
+        [
+          66,
+          6.083238164451827e-06,
+          0.0,
+          0.0,
+          null,
+          null
+        ]
+      ]
+    },
+    "reward_phases": {
+      "columns": [
+        "term",
+        "phase_start_step",
+        "per_episode"
+      ],
+      "rows": [
+        [
+          "badge",
+          0,
+          4.895833333333333
+        ],
+        [
+          "badge",
+          10240,
+          0.10416666666666667
+        ],
+        [
+          "badge",
+          20480,
+          0.052083333333333336
+        ],
+        [
+          "badge",
+          30720,
+          0.46875
+        ],
+        [
+          "badge",
+          40960,
+          0.46875
+        ],
+        [
+          "badge",
+          51200,
+          0.10416666666666667
+        ],
+        [
+          "badge",
+          61440,
+          0.20833333333333334
+        ],
+        [
+          "event",
+          0,
+          43.895833333333336
+        ],
+        [
+          "event",
+          10240,
+          14.1875
+        ],
+        [
+          "event",
+          20480,
+          4.979166666666667
+        ],
+        [
+          "event",
+          30720,
+          1.0208333333333333
+        ],
+        [
+          "event",
+          40960,
+          0.6875
+        ],
+        [
+          "event",
+          51200,
+          0.25
+        ],
+        [
+          "event",
+          61440,
+          0.22916666666666666
+        ],
+        [
+          "explore",
+          0,
+          10.225260416666886
+        ],
+        [
+          "explore",
+          10240,
+          10.507708333333648
+        ],
+        [
+          "explore",
+          20480,
+          4.537395833333265
+        ],
+        [
+          "explore",
+          30720,
+          1.4965104166666485
+        ],
+        [
+          "explore",
+          40960,
+          0.6667708333333265
+        ],
+        [
+          "explore",
+          51200,
+          0.32203124999999727
+        ],
+        [
+          "explore",
+          61440,
+          0.271093749999998
+        ],
+        [
+          "explore",
+          71680,
+          0.047708333333333346
+        ],
+        [
+          "level",
+          0,
+          8.947916666666666
+        ],
+        [
+          "level",
+          10240,
+          0.8385416666666666
+        ],
+        [
+          "level",
+          20480,
+          0.041666666666666664
+        ],
+        [
+          "level",
+          30720,
+          0.15104166666666666
+        ],
+        [
+          "level",
+          40960,
+          0.140625
+        ],
+        [
+          "level",
+          51200,
+          0.03125
+        ],
+        [
+          "level",
+          61440,
+          0.0625
+        ]
+      ]
+    }
+  },
+  "snapshots": [
+    {
+      "file": "000400015360_0_stall_map33",
+      "kind": "stall",
+      "step": 37845,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 9,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_1_stall_map65",
+      "kind": "stall",
+      "step": 38596,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_2_stall_map1",
+      "kind": "stall",
+      "step": 40080,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_3_stall_map59",
+      "kind": "stall",
+      "step": 31978,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 28,
+      "y": 17,
+      "in_battle": true,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_4_stall_map54",
+      "kind": "stall",
+      "step": 17025,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 4,
+      "y": 6,
+      "in_battle": false,
+      "party_levels": [
+        16
+      ]
+    },
+    {
+      "file": "000400015360_5_stall_map61",
+      "kind": "stall",
+      "step": 30530,
+      "dry_steps": 10240,
+      "map_id": 61,
+      "x": 20,
+      "y": 14,
+      "in_battle": true,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_6_stall_map60",
+      "kind": "stall",
+      "step": 35679,
+      "dry_steps": 10240,
+      "map_id": 60,
+      "x": 13,
+      "y": 17,
+      "in_battle": true,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_7_stall_map13",
+      "kind": "stall",
+      "step": 39724,
+      "dry_steps": 10240,
+      "map_id": 13,
+      "x": 3,
+      "y": 11,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_8_stall_map14",
+      "kind": "stall",
+      "step": 45541,
+      "dry_steps": 10240,
+      "map_id": 14,
+      "x": 59,
+      "y": 4,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_9_stall_map15",
+      "kind": "stall",
+      "step": 34600,
+      "dry_steps": 10240,
+      "map_id": 15,
+      "x": 8,
+      "y": 6,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_10_stall_map52",
+      "kind": "stall",
+      "step": 45905,
+      "dry_steps": 10240,
+      "map_id": 52,
+      "x": 10,
+      "y": 4,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_11_stall_map68",
+      "kind": "stall",
+      "step": 72457,
+      "dry_steps": 10240,
+      "map_id": 68,
+      "x": 3,
+      "y": 7,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_12_stall_map33",
+      "kind": "stall",
+      "step": 32543,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_13_stall_map65",
+      "kind": "stall",
+      "step": 74371,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_14_stall_map1",
+      "kind": "stall",
+      "step": 76441,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 8,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_15_stall_map59",
+      "kind": "stall",
+      "step": 60328,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 24,
+      "y": 11,
+      "in_battle": true,
+      "party_levels": [
+        27,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_16_stall_map54",
+      "kind": "stall",
+      "step": 46957,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 4,
+      "y": 3,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_17_stall_map61",
+      "kind": "stall",
+      "step": 36218,
+      "dry_steps": 10240,
+      "map_id": 61,
+      "x": 12,
+      "y": 17,
+      "in_battle": true,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_18_stall_map60",
+      "kind": "stall",
+      "step": 52579,
+      "dry_steps": 10240,
+      "map_id": 60,
+      "x": 17,
+      "y": 16,
+      "in_battle": true,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_19_stall_map33",
+      "kind": "stall",
+      "step": 29062,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        23,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_20_stall_map65",
+      "kind": "stall",
+      "step": 43651,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_21_stall_map1",
+      "kind": "stall",
+      "step": 57834,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 8,
+      "y": 4,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_22_stall_map59",
+      "kind": "stall",
+      "step": 36856,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 36,
+      "y": 8,
+      "in_battle": true,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_23_stall_map54",
+      "kind": "stall",
+      "step": 13885,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 3,
+      "y": 1,
+      "in_battle": false,
+      "party_levels": [
+        15
+      ]
+    },
+    {
+      "file": "000400015360_24_stall_map61",
+      "kind": "stall",
+      "step": 33835,
+      "dry_steps": 10240,
+      "map_id": 61,
+      "x": 29,
+      "y": 23,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_25_stall_map33",
+      "kind": "stall",
+      "step": 39020,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 7,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_26_stall_map65",
+      "kind": "stall",
+      "step": 56999,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        29,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_27_stall_map1",
+      "kind": "stall",
+      "step": 71379,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_28_stall_map59",
+      "kind": "stall",
+      "step": 46605,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 5,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_29_stall_map54",
+      "kind": "stall",
+      "step": 43012,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 5,
+      "y": 9,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_30_stall_map61",
+      "kind": "stall",
+      "step": 39285,
+      "dry_steps": 10240,
+      "map_id": 61,
+      "x": 32,
+      "y": 8,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_31_stall_map33",
+      "kind": "stall",
+      "step": 33578,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 8,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        24
+      ]
+    },
+    {
+      "file": "000400015360_32_stall_map65",
+      "kind": "stall",
+      "step": 53724,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_33_stall_map1",
+      "kind": "stall",
+      "step": 28875,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 10,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_34_stall_map59",
+      "kind": "stall",
+      "step": 30559,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 14,
+      "y": 35,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_35_stall_map54",
+      "kind": "stall",
+      "step": 33231,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 4,
+      "y": 8,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_36_stall_map33",
+      "kind": "stall",
+      "step": 34384,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_37_stall_map65",
+      "kind": "stall",
+      "step": 43541,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_38_stall_map1",
+      "kind": "stall",
+      "step": 49266,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 18,
+      "y": 10,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_39_stall_map59",
+      "kind": "stall",
+      "step": 34887,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 35,
+      "y": 25,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_40_stall_map54",
+      "kind": "stall",
+      "step": 16927,
+      "dry_steps": 10240,
+      "map_id": 54,
+      "x": 4,
+      "y": 3,
+      "in_battle": false,
+      "party_levels": [
+        17
+      ]
+    },
+    {
+      "file": "000400015360_41_stall_map33",
+      "kind": "stall",
+      "step": 34253,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 6,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_42_stall_map65",
+      "kind": "stall",
+      "step": 41175,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_43_stall_map1",
+      "kind": "stall",
+      "step": 62397,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 10,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_44_stall_map59",
+      "kind": "stall",
+      "step": 34658,
+      "dry_steps": 10240,
+      "map_id": 59,
+      "x": 34,
+      "y": 24,
+      "in_battle": true,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_45_stall_map33",
+      "kind": "stall",
+      "step": 21352,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 6,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        20,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_46_stall_map65",
+      "kind": "stall",
+      "step": 52205,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        29,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_47_stall_map1",
+      "kind": "stall",
+      "step": 57211,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 10,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_48_stall_map33",
+      "kind": "stall",
+      "step": 33254,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 4,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_49_stall_map65",
+      "kind": "stall",
+      "step": 78318,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        30,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_50_stall_map1",
+      "kind": "stall",
+      "step": 51706,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_51_stall_map33",
+      "kind": "stall",
+      "step": 25769,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 6,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_52_stall_map65",
+      "kind": "stall",
+      "step": 31896,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": true,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_53_stall_map1",
+      "kind": "stall",
+      "step": 43742,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 5,
+      "y": 16,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_54_stall_map33",
+      "kind": "stall",
+      "step": 40521,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_55_stall_map65",
+      "kind": "stall",
+      "step": 47720,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_56_stall_map1",
+      "kind": "stall",
+      "step": 39578,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 6,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_57_stall_map33",
+      "kind": "stall",
+      "step": 28964,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 11,
+      "y": 12,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_58_stall_map65",
+      "kind": "stall",
+      "step": 47595,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_59_stall_map1",
+      "kind": "stall",
+      "step": 34567,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 10,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_60_stall_map33",
+      "kind": "stall",
+      "step": 36357,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 9,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_61_stall_map65",
+      "kind": "stall",
+      "step": 41943,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_62_stall_map1",
+      "kind": "stall",
+      "step": 44279,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_63_stall_map33",
+      "kind": "stall",
+      "step": 27916,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 4,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_64_stall_map65",
+      "kind": "stall",
+      "step": 75099,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        30,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_65_stall_map1",
+      "kind": "stall",
+      "step": 31866,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 8,
+      "y": 4,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_66_stall_map33",
+      "kind": "stall",
+      "step": 34731,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_67_stall_map65",
+      "kind": "stall",
+      "step": 57063,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_68_stall_map1",
+      "kind": "stall",
+      "step": 33680,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_69_stall_map33",
+      "kind": "stall",
+      "step": 34038,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 3,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        24,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_70_stall_map65",
+      "kind": "stall",
+      "step": 66688,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_71_stall_map1",
+      "kind": "stall",
+      "step": 43866,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 5,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_72_stall_map33",
+      "kind": "stall",
+      "step": 54715,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 11,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_73_stall_map65",
+      "kind": "stall",
+      "step": 52499,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_74_stall_map1",
+      "kind": "stall",
+      "step": 40958,
+      "dry_steps": 10240,
+      "map_id": 1,
+      "x": 6,
+      "y": 4,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_75_stall_map33",
+      "kind": "stall",
+      "step": 43031,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_76_stall_map65",
+      "kind": "stall",
+      "step": 53378,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_77_stall_map33",
+      "kind": "stall",
+      "step": 37791,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 6,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_78_stall_map65",
+      "kind": "stall",
+      "step": 48008,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_79_stall_map33",
+      "kind": "stall",
+      "step": 35243,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 30,
+      "y": 10,
+      "in_battle": true,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_80_stall_map65",
+      "kind": "stall",
+      "step": 48584,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_81_stall_map33",
+      "kind": "stall",
+      "step": 36859,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 7,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        26,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_82_stall_map65",
+      "kind": "stall",
+      "step": 61278,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_83_stall_map33",
+      "kind": "stall",
+      "step": 21603,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 3,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        20,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_84_stall_map65",
+      "kind": "stall",
+      "step": 72468,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28
+      ]
+    },
+    {
+      "file": "000400015360_85_stall_map33",
+      "kind": "stall",
+      "step": 28123,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 11,
+      "y": 12,
+      "in_battle": false,
+      "party_levels": [
+        5,
+        23
+      ]
+    },
+    {
+      "file": "000400015360_86_stall_map65",
+      "kind": "stall",
+      "step": 58867,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_87_stall_map33",
+      "kind": "stall",
+      "step": 38293,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 3,
+      "y": 15,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_88_stall_map65",
+      "kind": "stall",
+      "step": 57491,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": true,
+      "party_levels": [
+        27,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_89_stall_map33",
+      "kind": "stall",
+      "step": 42053,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 7,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_90_stall_map65",
+      "kind": "stall",
+      "step": 46984,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_91_stall_map33",
+      "kind": "stall",
+      "step": 29061,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 5,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        23,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_92_stall_map65",
+      "kind": "stall",
+      "step": 63126,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        27,
+        6
+      ]
+    },
+    {
+      "file": "000400015360_93_stall_map33",
+      "kind": "stall",
+      "step": 29261,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 4,
+      "y": 14,
+      "in_battle": false,
+      "party_levels": [
+        22,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_94_stall_map65",
+      "kind": "stall",
+      "step": 51421,
+      "dry_steps": 10240,
+      "map_id": 65,
+      "x": 5,
+      "y": 2,
+      "in_battle": false,
+      "party_levels": [
+        28,
+        5
+      ]
+    },
+    {
+      "file": "000400015360_95_stall_map33",
+      "kind": "stall",
+      "step": 46357,
+      "dry_steps": 10240,
+      "map_id": 33,
+      "x": 8,
+      "y": 12,
+      "in_battle": false,
+      "party_levels": [
+        25,
+        5
+      ]
+    }
+  ]
+}
