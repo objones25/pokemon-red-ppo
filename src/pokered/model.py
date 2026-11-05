@@ -15,6 +15,7 @@ _FEATURES: Final[int] = 512
 _STATE_FEATURES: Final[int] = 256
 _PIXEL_MAX: Final[float] = 255.0
 _BITS_PER_BYTE: Final[int] = 8
+_RANK_ENERGY: Final[float] = 0.99
 
 
 def _nature_cnn(channels: int) -> nn.Sequential:
@@ -60,14 +61,15 @@ class ActorCritic(nn.Module):
         shifts = torch.arange(_BITS_PER_BYTE, dtype=torch.uint8, device=data.device)
         return ((data.unsqueeze(-1) >> shifts) & 1).flatten(1).float()
 
-    def forward(self, obs: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+    def features(self, obs: dict[str, torch.Tensor]) -> torch.Tensor:
+        """The body's output, which both heads read."""
         for key, value in obs.items():
             require(value.dtype == torch.uint8, f"{key} must stay uint8 until here, got {value.dtype}")
         party = obs["party"]
         state = torch.cat(
             [party[:, :-1].float() / _PIXEL_MAX, self.unpack_bits(party[:, -1:]), self.unpack_bits(obs["events"])], dim=1
         )
-        features = self.body(
+        return self.body(
             torch.cat(
                 [
                     self.screens(obs["screens"].float() / _PIXEL_MAX),
@@ -77,10 +79,31 @@ class ActorCritic(nn.Module):
                 dim=1,
             )
         )
+
+    def forward(self, obs: dict[str, torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+        features = self.features(obs)
         logits, values = self.actor(features), self.critic(features).squeeze(1)
         require(logits.shape[0] == values.shape[0], "logits and values must have one row per observation")
         check_finite(values, "values")
         return logits, values
+
+
+def feature_health(features: torch.Tensor) -> dict[str, float]:
+    """Signs of a network running out of room: units that never fire, and how many directions the features still use.
+
+    ``feature_rank`` is the number of singular values holding 99% of their total (Kumar et al. 2021).
+    """
+    require(features.ndim == 2, f"features must be (rows, units), got {tuple(features.shape)}")
+    require(features.numel() > 0, "features are empty")
+    features = features.detach().float()
+    values = torch.linalg.svdvals(features)
+    total = values.sum()
+    rank = 0.0 if total == 0 else float((values.cumsum(0) / total < _RANK_ENERGY).sum().item() + 1)
+    return {
+        "dead_fraction": (features.abs().amax(0) == 0).float().mean().item(),
+        "feature_rank": rank,
+        "feature_norm": features.norm(dim=1).mean().item(),
+    }
 
 
 def _orthogonal(module: nn.Module) -> None:

@@ -54,6 +54,7 @@ PARTY_SPECIES = 0xD164
 PARTY_MONS = 0xD16B
 MON_SIZE = 44
 MAX_PARTY = 6
+MOVES_PER_MON = 4
 
 # Offsets inside a 44-byte party or enemy-party struct
 OFF_SPECIES = 0

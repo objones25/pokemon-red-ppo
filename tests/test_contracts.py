@@ -119,6 +119,8 @@ def test_collect_refuses_mismatched_env_count():
         def __init__(self) -> None:
             self.num_envs = 3
             self.obs: dict[str, np.ndarray] = {}
+            self.map_ids = np.zeros(3, np.uint8)
+            self.in_battle = np.zeros(3, np.bool_)
 
         def step(self, actions: np.ndarray) -> StepResult:
             raise AssertionError("must refuse before stepping")

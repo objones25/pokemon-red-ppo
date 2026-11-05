@@ -21,6 +21,11 @@ class GameFrame:
     badges: int
     party_levels: tuple[int, ...]
     party_hp: tuple[float, ...]
+    battle_type: int = ram_map.BATTLE_NONE
+    opponent: int = 0
+    trainer_number: int = 0
+    party_moves: tuple[int, ...] = ()
+    bag_items: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
@@ -50,4 +55,9 @@ def read_frame(mem: ram_map.Memory) -> GameFrame:
         badges=mem[ram_map.BADGES],
         party_levels=tuple(mem[address + ram_map.OFF_LEVEL] for address in party),
         party_hp=tuple(_hp_fraction(mem, address) for address in party),
+        battle_type=mem[ram_map.BATTLE_TYPE],
+        opponent=mem[ram_map.OPPONENT],
+        trainer_number=mem[ram_map.TRAINER_NUMBER],
+        party_moves=tuple(mem[address + ram_map.OFF_MOVES + i] for address in party for i in range(ram_map.MOVES_PER_MON)),
+        bag_items=tuple(item for item, _ in ram_map.read_bag(mem)),
     )

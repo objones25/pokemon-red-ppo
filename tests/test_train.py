@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import math
 import signal
+from dataclasses import replace
 from functools import partial
 from typing import ClassVar
 
 import numpy as np
 import pytest
 import torch
+from support import fake_episode
 
 from pokered.checkpoints import CheckpointStore, ConfigChanged
 from pokered.config import EnvConfig, PPOConfig, TrainConfig
 from pokered.model import ActorCritic
-from pokered.negative_space import CheckFailed, expect
+from pokered.negative_space import expect
 from pokered.observations import OBSERVATION_SHAPES
+from pokered.report import Report
 from pokered.runpod import TerminateFailed
-from pokered.train import PodStopping, _run, episode_metrics, holding_sigterm, pick_device, run_guarded, train
+from pokered.train import PodStopping, _run, holding_sigterm, pick_device, run_guarded, train
 from pokered.vec import StepResult
 
 EPISODE_LENGTH = 6
@@ -28,6 +31,8 @@ class FakeVec:
         self.num_envs = num_envs
         # Nonzero: on all-zero inputs the ReLU body outputs zero and only the actor's bias could learn.
         self.obs = {key: np.full((num_envs, *shape), 128, np.uint8) for key, shape in OBSERVATION_SHAPES.items()}
+        self.map_ids = np.full(num_envs, 3, np.uint8)
+        self.in_battle = np.arange(num_envs) % 2 == 0
         self._t = 0
         self.action_counts = np.zeros(7)
 
@@ -43,16 +48,20 @@ class FakeVec:
             terminated=np.zeros(self.num_envs, np.bool_),
             truncated=np.full(self.num_envs, done),
             final_obs=self.obs,
-            episodes=[{"tiles": 2.0, "events": 1.0}] * self.num_envs if done else [],
+            episodes=[fake_episode(tiles=2.0, events=1.0)] * self.num_envs if done else [],
         )
 
 
 class ListLogger:
     def __init__(self) -> None:
         self.records: list[tuple[int, dict]] = []
+        self.reports: list[tuple[int, Report]] = []
 
     def log(self, metrics, *, step: int) -> None:
         self.records.append((step, metrics))
+
+    def log_report(self, report, *, step: int) -> None:
+        self.reports.append((step, report))
 
     def finish(self) -> None:
         pass
@@ -71,6 +80,7 @@ def _config(tmp_path, total_steps=64, **ppo) -> TrainConfig:
         total_steps=total_steps,
         run_dir=tmp_path,
         checkpoint_every_steps=32,
+        report_every_steps=1_000,
     )
 
 
@@ -109,9 +119,44 @@ def test_logs_throughput(tmp_path):
     assert _train(_config(tmp_path))[1].records[-1][1]["perf/steps_per_second"] > 0
 
 
-def test_logs_mean_and_max_of_finished_episodes(tmp_path):
-    metrics = _train(_config(tmp_path))[1].records[-1][1]
-    assert (metrics["episode/tiles_mean"], metrics["episode/events_max"]) == (pytest.approx(2.0), pytest.approx(1.0))
+def test_report_covers_finished_episodes(tmp_path):
+    step, report = _train(_config(tmp_path))[1].reports[-1]
+    assert (step, report.scalars["progress/tiles_mean"], report.scalars["progress/events_max"]) == (64, pytest.approx(2.0), pytest.approx(1.0))
+
+
+def test_report_is_logged_only_at_its_cadence_and_the_end(tmp_path):
+    logger = _train(replace(_config(tmp_path, total_steps=96), report_every_steps=64))[1]
+    assert [step for step, _ in logger.reports] == [64, 96]
+
+
+def test_report_window_starts_empty_after_each_report(tmp_path):
+    logger = _train(replace(_config(tmp_path, total_steps=96), report_every_steps=32))[1]
+    assert all(report.scalars["progress/episodes"] <= 32 for _, report in logger.reports)
+
+
+def test_report_is_saved_next_to_the_checkpoints(tmp_path):
+    _train(_config(tmp_path))
+    assert (tmp_path / "reports" / "report_000000000064.json").is_file()
+
+
+def test_report_table_includes_rollout_entropy_for_a_map(tmp_path):
+    report = _train(_config(tmp_path))[1].reports[-1][1]
+    assert report.tables["maps"][1][0][4] == pytest.approx(math.log(7), abs=0.5)
+
+
+@pytest.mark.parametrize("key", ["net/dead_fraction", "net/feature_rank", "net/feature_norm"])
+def test_logs_network_health_with_each_report(tmp_path, key):
+    assert key in _train(_config(tmp_path))[1].records[-1][1]
+
+
+@pytest.mark.parametrize("key", ["ppo/approx_kl_max", "ppo/update_ratio", "ppo/weight_norm", "ppo/entropy_battle", "ppo/entropy_overworld", "ppo/value_error_battle", "ppo/value_error_overworld"])
+def test_logs_learning_health_every_update(tmp_path, key):
+    assert key in _train(_config(tmp_path))[1].records[0][1]
+
+
+@pytest.mark.parametrize("key", ["ppo/policy_loss", "rollout/reward_per_step", "rollout/truncations", "perf/collect_seconds"])
+def test_does_not_log_metrics_that_mislead_or_repeat(tmp_path, key):
+    assert key not in _train(_config(tmp_path))[1].records[0][1]
 
 
 def test_writes_a_final_checkpoint(tmp_path):
@@ -167,15 +212,6 @@ def test_policy_learns_the_paying_action(tmp_path):
     obs = {key: torch.full((1, *shape), 128, dtype=torch.uint8) for key, shape in OBSERVATION_SHAPES.items()}
     with torch.no_grad():
         assert model(obs)[0].softmax(1)[0, 3].item() > 0.5
-
-
-def test_episode_metrics_ignore_episodes_that_never_reached_a_milestone():
-    metrics = episode_metrics([{"steps_to_x": 10.0}, {"steps_to_x": math.nan}])
-    assert metrics["episode/steps_to_x_mean"] == pytest.approx(10.0)
-
-
-def test_episode_metrics_omit_a_statistic_with_no_values():
-    assert "episode/steps_to_x_mean" not in episode_metrics([{"steps_to_x": math.nan}])
 
 
 def test_pick_device_returns_a_usable_device():
@@ -339,29 +375,10 @@ def test_a_logger_that_cannot_start_still_closes_the_workers(tmp_path, monkeypat
     assert ClosableVec.instances[-1].closed
 
 
-def test_episode_metrics_of_nothing_is_empty():
-    assert episode_metrics([]) == {}
-
-
-def test_episode_metrics_refuse_mismatched_statistics():
-    with pytest.raises(CheckFailed, match="different statistics"):
-        episode_metrics([{"tiles": 1.0}, {"events": 1.0}])
-
-
-def test_episode_metrics_refuse_one_mismatch_among_many():
-    with pytest.raises(CheckFailed, match="different statistics"):
-        episode_metrics([{"tiles": 1.0}, {"tiles": 1.0}, {"events": 1.0}])
-
-
-def test_episode_metrics_report_the_largest_value():
-    assert episode_metrics([{"tiles": 1.0}, {"tiles": 5.0}])["episode/tiles_max"] == pytest.approx(5.0)
-
-
 def test_throughput_metrics_use_the_measured_times(tmp_path, monkeypatch):
     clock = iter([100.0, 102.0, 108.0, 200.0, 201.0, 202.0])
     monkeypatch.setattr("pokered.train.time.perf_counter", lambda: next(clock))
     metrics = _train(_config(tmp_path, total_steps=32))[1].records[0][1]
-    assert metrics["perf/collect_seconds"] == pytest.approx(2.0)
     assert metrics["perf/update_seconds"] == pytest.approx(6.0)
     assert metrics["perf/steps_per_second"] == pytest.approx(32 / 8.0)
 

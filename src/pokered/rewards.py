@@ -19,10 +19,10 @@ from pokered.negative_space import check_finite, require
 # (byte offset into the event flags, bit) of EVENT_BOUGHT_MUSEUM_TICKET: buying it is optional, not progress.
 MUSEUM_TICKET: Final[tuple[int, int]] = (0xD754 - ram_map.EVENT_FLAGS_START, 0)
 
-# Total team level of the next gym leader, indexed by badges held; the last entry is Lance's team. A party that
-# has reached this total has trained enough for the next fight, so further levels pay nothing until it wins a
-# badge. Source: pret/pokered data/trainers/parties.asm (Brock 12+14, ..., Giovanni 45+42+44+45+50).
-LEVEL_CAP_BY_BADGES: Final[tuple[int, ...]] = (26, 39, 63, 82, 156, 156, 171, 226, 292)
+# Highest level on the next gym leader's team, indexed by badges held; the last entry is Lance's ace. No Pokemon earns
+# reward past this until the next badge. Source: pret/pokered data/trainers/parties.asm (Brock's Onix 14, ...,
+# Giovanni's Rhydon 50, Lance's Dragonite 62).
+GYM_ACE_LEVEL_BY_BADGES: Final[tuple[int, ...]] = (14, 21, 24, 29, 43, 43, 47, 50, 62)
 
 
 def _require_weight(weight: float) -> None:
@@ -112,33 +112,46 @@ class BadgeGain:
 
 @dataclass(slots=True)
 class LevelGain:
-    """Pays per party level up to the next gym leader's team total; grinding beyond that pays nothing.
+    """Pays per level up to the next gym's ace, for each of the six party places.
 
-    Uses the highest level total and badge count seen, so depositing and withdrawing Pokemon earns nothing.
+    Places rank the party by level, highest first, and each keeps the highest level it has ever held. That is what
+    stops the term being farmed: storing a Pokemon costs nothing, while withdrawing it or levelling a replacement to
+    the same level pays nothing, so the lifetime total is at most six times the last ace. No identity is tracked.
     """
 
     weight: float
     name: str = "level"
-    _best_levels: int = 0
+    _best: list[int] = field(default_factory=list, repr=False)
+    _credited: list[int] = field(default_factory=list, repr=False)
     _most_badges: int = 0
-    _credited: int = 0
 
     def __post_init__(self) -> None:
         _require_weight(self.weight)
 
-    def reset(self, first: GameFrame) -> None:  # nsp: ignore NSP001 GameFrame validates its fields
-        self._best_levels = sum(first.party_levels)
+    def reset(self, first: GameFrame) -> None:
+        self._best = _ranked_levels(first.party_levels)
+        self._credited = list(self._best)
         self._most_badges = first.badges.bit_count()
-        self._credited = self._best_levels
+        require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
 
     def __call__(self, frame: GameFrame) -> float:
-        self._best_levels = max(self._best_levels, sum(frame.party_levels))
         self._most_badges = max(self._most_badges, frame.badges.bit_count())
-        earned = min(self._best_levels, LEVEL_CAP_BY_BADGES[self._most_badges])
-        gained = max(earned - self._credited, 0)
-        self._credited += gained
-        require(self._credited <= max(LEVEL_CAP_BY_BADGES[-1], self._best_levels), "credited levels passed every cap")
+        ace = GYM_ACE_LEVEL_BY_BADGES[self._most_badges]
+        gained = 0
+        for place, level in enumerate(_ranked_levels(frame.party_levels)):
+            self._best[place] = max(self._best[place], level)
+            earned = min(self._best[place], ace)
+            if earned > self._credited[place]:
+                gained += earned - self._credited[place]
+                self._credited[place] = earned
+        require(gained >= 0, f"a level gain cannot be negative, got {gained}")
         return self.weight * gained
+
+
+def _ranked_levels(levels: tuple[int, ...]) -> list[int]:
+    """Levels highest first, with zeros for empty places."""
+    require(len(levels) <= ram_map.MAX_PARTY, f"a party holds at most {ram_map.MAX_PARTY}, got {len(levels)}")
+    return sorted(levels, reverse=True) + [0] * (ram_map.MAX_PARTY - len(levels))
 
 
 class EpisodeReward:

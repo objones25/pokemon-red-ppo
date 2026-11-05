@@ -8,31 +8,43 @@ import math
 import os
 import signal
 import time
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict
 from functools import partial
 from types import FrameType
-from typing import Any, Protocol
+from typing import Any, Final, Protocol
 
 import httpx
 import torch
 import tyro
-from torch import nn
 
 from pokered.affinity import pin_process, plan_for_this_machine
 from pokered.checkpoints import CheckpointStore
 from pokered.config import TrainConfig
 from pokered.env import PokemonRedEnv
-from pokered.model import ActorCritic
+from pokered.model import ActorCritic, feature_health
 from pokered.negative_space import check_finite, require
 from pokered.observations import OBSERVATION_SHAPES
-from pokered.ppo import Envs, Rollout, collect_rollout, compute_gae, make_optimizer, ppo_update
+from pokered.ppo import (
+    Envs,
+    Rollout,
+    collect_rollout,
+    compute_gae,
+    learning_by_place,
+    make_optimizer,
+    place_totals,
+    ppo_update,
+)
+from pokered.report import PlaceTotals, build_report, save_report
 from pokered.runpod import TerminateFailed, own_terminator
+from pokered.telemetry import EpisodeReport
 from pokered.vec import VecEnv
 from pokered.wandb_logger import Logger, WandbLogger
 
 log = logging.getLogger(__name__)
+
+_HEALTH_ROWS: Final[int] = 512
 
 
 class PodStopping(Exception):
@@ -114,22 +126,29 @@ def config_dict(config: TrainConfig) -> dict[str, Any]:
     return json.loads(json.dumps(asdict(config), default=str))
 
 
-def episode_metrics(episodes: Sequence[dict[str, float]]) -> dict[str, float]:
-    """Mean and max of each episode statistic. Every episode must report the same statistics."""
-    if not episodes:
-        return {}
-    names = episodes[0].keys()
-    require(all(episode.keys() == names for episode in episodes), "episodes report different statistics")
-    metrics = {"episode/count": float(len(episodes))}
-    for name in names:
-        values = [episode[name] for episode in episodes if math.isfinite(episode[name])]  # NaN: never reached
-        if values:
-            metrics[f"episode/{name}_mean"] = sum(values) / len(values)
-            metrics[f"episode/{name}_max"] = max(values)
-    return metrics
+def network_health(model: ActorCritic, rollout: Rollout) -> dict[str, float]:
+    """Measured on evenly spaced rollout rows, so that taking the measurement uses no random numbers."""
+    rows = rollout.steps * rollout.envs
+    require(rows >= 1, f"a rollout needs at least one row, got {rows}")
+    index = torch.linspace(0, rows - 1, min(_HEALTH_ROWS, rows), device=rollout.actions.device).long()
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.inference_mode():
+            features = model.features({key: value.flatten(0, 1)[index] for key, value in rollout.obs.items()})
+    finally:
+        model.train(was_training)
+    return {f"net/{name}": value for name, value in feature_health(features).items()}
 
 
-def train(config: TrainConfig, model: nn.Module, envs: Envs, logger: Logger, store: CheckpointStore, device: torch.device) -> None:
+def _merge_places(window: dict[int, PlaceTotals], update: dict[int, PlaceTotals]) -> None:
+    for map_id, place in update.items():
+        old = window.get(map_id, PlaceTotals(0, 0.0, 0.0))
+        window[map_id] = PlaceTotals(old.steps + place.steps, old.entropy + place.entropy, old.value_error + place.value_error)
+    require(all(place.steps > 0 for place in window.values()), "a map with no steps has no place in the totals")
+
+
+def train(config: TrainConfig, model: ActorCritic, envs: Envs, logger: Logger, store: CheckpointStore, device: torch.device) -> None:
     """Train to ``config.total_steps``, resuming from the newest intact checkpoint in ``store``."""
     require(envs.num_envs == config.num_envs, f"{envs.num_envs} envs given, the config says {config.num_envs}")
     model.to(device)
@@ -161,10 +180,12 @@ def train(config: TrainConfig, model: nn.Module, envs: Envs, logger: Logger, sto
 
     rollout = Rollout(config.ppo.rollout_steps, config.num_envs, OBSERVATION_SHAPES, device)
     updates = math.ceil(max(config.total_steps - env_steps, 0) / config.batch_size)
+    window: list[EpisodeReport] = []
+    places: dict[int, PlaceTotals] = {}
     try:
         for _ in range(updates):
             started = time.perf_counter()
-            episodes = collect_rollout(model, envs, rollout, device)
+            window.extend(collect_rollout(model, envs, rollout, device))
             collected = time.perf_counter()
             with holding_sigterm():
                 advantages, returns = compute_gae(
@@ -176,23 +197,27 @@ def train(config: TrainConfig, model: nn.Module, envs: Envs, logger: Logger, sto
                     gamma=config.ppo.gamma,
                     lam=config.ppo.lam,
                 )
+                _merge_places(places, place_totals(rollout, advantages))
+                by_place = learning_by_place(rollout, advantages)
                 health = ppo_update(model, optimizer, rollout, advantages, returns, config.ppo)
                 finished = time.perf_counter()
                 previous_steps = env_steps
                 env_steps += config.batch_size
                 check_finite(rollout.rewards, "rollout rewards")
-                logger.log(
-                    {
-                        **{f"ppo/{name}": value for name, value in health.items()},
-                        **episode_metrics(episodes),
-                        "rollout/reward_per_step": float(rollout.rewards.mean()),
-                        "rollout/truncations": float(rollout.truncated.sum()),
-                        "perf/steps_per_second": config.batch_size / (finished - started),
-                        "perf/collect_seconds": collected - started,
-                        "perf/update_seconds": finished - collected,
-                    },
-                    step=env_steps,
-                )
+                metrics = {
+                    **{f"ppo/{name}": value for name, value in {**health, **by_place}.items()},
+                    "perf/steps_per_second": config.batch_size / (finished - started),
+                    "perf/update_seconds": finished - collected,
+                }
+                report_due = env_steps // config.report_every_steps > previous_steps // config.report_every_steps
+                if report_due or env_steps >= config.total_steps:
+                    metrics.update(network_health(model, rollout))
+                    if window:
+                        report = build_report(window, places=places)
+                        logger.log_report(report, step=env_steps)
+                        save_report(report, config.run_dir, step=env_steps)
+                    window, places = [], {}
+                logger.log(metrics, step=env_steps)
                 crossed = env_steps // config.checkpoint_every_steps > previous_steps // config.checkpoint_every_steps
                 if crossed or env_steps >= config.total_steps:
                     save()

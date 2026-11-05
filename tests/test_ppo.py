@@ -7,6 +7,7 @@ import math
 import numpy as np
 import pytest
 import torch
+from support import fake_episode
 
 from pokered.config import PPOConfig
 from pokered.model import ActorCritic
@@ -17,9 +18,11 @@ from pokered.ppo import (
     collect_rollout,
     compute_gae,
     explained_variance,
+    learning_by_place,
     make_optimizer,
     minibatch_losses,
     normalize_advantage,
+    place_totals,
     ppo_update,
     total_loss,
 )
@@ -117,7 +120,7 @@ def test_update_reduces_value_error():
     assert _value_loss_after_updates(model, optimizer, rollout, flat, returns, config, 5) < first["value_loss"]
 
 
-@pytest.mark.parametrize("key", ["approx_kl", "clip_fraction", "explained_variance", "entropy", "grad_norm", "value_loss", "policy_loss"])
+@pytest.mark.parametrize("key", ["approx_kl", "clip_fraction", "explained_variance", "entropy", "grad_norm", "value_loss", "approx_kl_max", "update_ratio", "weight_norm"])
 def test_update_reports_health_metric(key):
     torch.manual_seed(0)
     model = ActorCritic()
@@ -159,6 +162,8 @@ class _ScriptedVec:
     def __init__(self) -> None:
         self.obs = {key: np.zeros((2, *shape), np.uint8) for key, shape in OBSERVATION_SHAPES.items()}
         self.obs["party"][:, 0] = [1, 2]
+        self.map_ids = np.array([3, 4], np.uint8)
+        self.in_battle = np.array([False, True])
         self._t = 0
 
     def step(self, _actions):
@@ -169,7 +174,7 @@ class _ScriptedVec:
         self.obs["party"][:, 0] += 1
         return StepResult(
             rewards=np.ones(2, np.float32), terminated=np.zeros(2, np.bool_), truncated=truncated,
-            final_obs=final, episodes=[{"length": 1.0}] if truncated.any() else [],
+            final_obs=final, episodes=[fake_episode(length=1.0)] if truncated.any() else [],
         )  # fmt: skip
 
 
@@ -196,7 +201,7 @@ def test_collect_records_the_observation_seen_before_stepping():
 
 
 def test_collect_returns_finished_episodes():
-    assert _collected()[1] == [{"length": 1.0}]
+    assert [episode.summary for episode in _collected()[1]] == [{"length": 1.0}]
 
 
 # Hand values: ratio 1.5 clips to 1.2 at clip 0.2. Value 2 from old 1 clips to 1.2, against a return of 3.
@@ -362,7 +367,7 @@ def test_update_skips_a_one_sample_remainder():
     config = PPOConfig(rollout_steps=5, minibatch_size=4, epochs=1)
     returns = torch.arange(5.0).view(5, 1)
     metrics = ppo_update(model, make_optimizer(model, config), rollout, returns.clone(), returns, config)
-    assert math.isfinite(metrics["policy_loss"])
+    assert math.isfinite(metrics["value_loss"])
 
 
 def test_update_runs_a_two_sample_remainder():
@@ -390,3 +395,44 @@ def test_explained_variance_is_nan_for_constant_returns():
 
 def test_explained_variance_is_near_zero_for_uninformative_values():
     assert _explained([0.0, 0.0, 0.0], [1.0, 2.0, 3.0]) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_collect_records_where_each_step_happened():
+    rollout, _ = _collected()
+    assert rollout.map_ids[0].tolist() == [3, 4]
+
+
+def test_collect_records_battle_state_before_acting():
+    rollout, _ = _collected()
+    assert rollout.in_battle[0].tolist() == [False, True]
+
+
+def test_collect_records_policy_entropy():
+    rollout, _ = _collected()
+    assert rollout.entropies[0, 0].item() == pytest.approx(math.log(7))
+
+
+def _placed_rollout() -> Rollout:
+    rollout = Rollout(2, 2, OBSERVATION_SHAPES, torch.device("cpu"))
+    rollout.map_ids[:] = torch.tensor([[3, 4], [3, 4]], dtype=torch.uint8)
+    rollout.in_battle[:] = torch.tensor([[False, True], [False, True]])
+    rollout.entropies[:] = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    return rollout
+
+
+def test_place_totals_sum_steps_entropy_and_absolute_value_error_per_map():
+    advantages = torch.tensor([[1.0, 5.0], [-1.0, 5.0]])
+    totals = place_totals(_placed_rollout(), advantages)
+    assert (totals[3].steps, totals[3].entropy, totals[3].value_error) == (2, pytest.approx(4.0), pytest.approx(2.0))
+
+
+def test_learning_by_place_splits_battle_from_overworld():
+    advantages = torch.tensor([[1.0, 5.0], [-1.0, 5.0]])
+    metrics = learning_by_place(_placed_rollout(), advantages)
+    assert (metrics["entropy_battle"], metrics["entropy_overworld"]) == (pytest.approx(3.0), pytest.approx(2.0))
+
+
+def test_learning_by_place_omits_a_state_with_no_steps():
+    rollout = _placed_rollout()
+    rollout.in_battle[:] = False
+    assert "entropy_battle" not in learning_by_place(rollout, torch.zeros(2, 2))

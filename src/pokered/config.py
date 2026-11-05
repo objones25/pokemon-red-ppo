@@ -24,6 +24,7 @@ class EnvConfig:
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True
+    stall_steps: int = 10_240  # Steps with no new event or badge before the game state is saved as stuck.
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,6 +59,7 @@ class TrainConfig:
     wandb_project: str = "pokemon-red-ppo"
     wandb_mode: WandbMode = "online"
     checkpoint_every_steps: int = 5_000_000
+    report_every_steps: int = 5_000_000
     keep_checkpoints: int = 3
     device: str = "auto"
     torch_threads: int = 4
@@ -66,7 +68,7 @@ class TrainConfig:
     numa_node: int = 0
 
     def __post_init__(self) -> None:
-        for name in ("workers", "envs_per_worker", "total_steps", "checkpoint_every_steps", "keep_checkpoints"):
+        for name in ("workers", "envs_per_worker", "total_steps", "checkpoint_every_steps", "report_every_steps", "keep_checkpoints"):
             if getattr(self, name) < 1:
                 raise ValueError(f"{name} must be at least 1, got {getattr(self, name)}")
         if self.ppo.minibatch_size > self.batch_size:

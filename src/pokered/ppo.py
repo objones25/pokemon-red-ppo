@@ -11,6 +11,8 @@ from torch import nn
 
 from pokered.config import PPOConfig
 from pokered.negative_space import check_finite, require
+from pokered.report import PlaceTotals
+from pokered.telemetry import EpisodeReport
 from pokered.vec import StepResult
 
 _ADVANTAGE_EPS: Final[float] = 1e-8
@@ -23,6 +25,10 @@ class Envs(Protocol):
     def num_envs(self) -> int: ...
     @property
     def obs(self) -> Mapping[str, np.ndarray]: ...
+    @property
+    def map_ids(self) -> np.ndarray: ...
+    @property
+    def in_battle(self) -> np.ndarray: ...
 
     def step(self, actions: np.ndarray, /) -> StepResult: ...
 
@@ -80,6 +86,9 @@ class Rollout:
         self.terminated = torch.zeros((steps, envs), device=device)
         self.truncated = torch.zeros((steps, envs), device=device)
         self.next_values = torch.zeros((steps, envs), device=device)
+        self.entropies = torch.zeros((steps, envs), device=device)
+        self.map_ids = torch.zeros((steps, envs), dtype=torch.uint8, device=device)
+        self.in_battle = torch.zeros((steps, envs), dtype=torch.bool, device=device)
 
 
 def autocast(device: torch.device) -> torch.autocast:
@@ -92,10 +101,10 @@ def _to_device(arrays: Mapping[str, np.ndarray], device: torch.device) -> dict[s
 
 
 @torch.inference_mode()
-def collect_rollout(model: nn.Module, envs: Envs, rollout: Rollout, device: torch.device) -> list[dict[str, float]]:
+def collect_rollout(model: nn.Module, envs: Envs, rollout: Rollout, device: torch.device) -> list[EpisodeReport]:
     """Fill ``rollout`` from ``envs``, continuing from their current observations. Returns finished episodes."""
     require(envs.num_envs == rollout.envs, f"{envs.num_envs} envs cannot fill a rollout sized for {rollout.envs}")
-    episodes: list[dict[str, float]] = []
+    episodes: list[EpisodeReport] = []
     for t in range(rollout.steps):
         obs = _to_device(envs.obs, device)
         with autocast(device):
@@ -107,6 +116,9 @@ def collect_rollout(model: nn.Module, envs: Envs, rollout: Rollout, device: torc
         rollout.actions[t] = actions
         rollout.log_probs[t] = distribution.log_prob(actions)
         rollout.values[t] = values.float()
+        rollout.entropies[t] = distribution.entropy()
+        rollout.map_ids[t] = torch.from_numpy(envs.map_ids).to(device)
+        rollout.in_battle[t] = torch.from_numpy(envs.in_battle).to(device)
         result = envs.step(actions.cpu().numpy())
         rollout.rewards[t] = torch.from_numpy(result.rewards).to(device)
         rollout.terminated[t] = torch.from_numpy(result.terminated).to(device).float()
@@ -127,6 +139,28 @@ def collect_rollout(model: nn.Module, envs: Envs, rollout: Rollout, device: torc
     check_finite(rollout.rewards, "rollout rewards")
     check_finite(rollout.next_values, "rollout next values")
     return episodes
+
+
+def place_totals(rollout: Rollout, advantages: torch.Tensor) -> dict[int, PlaceTotals]:
+    """Entropy and value error summed per map. A GAE advantage is the return minus the value, so it is the error."""
+    require(advantages.shape == rollout.map_ids.shape, f"advantages {tuple(advantages.shape)} must match the rollout")
+    errors = advantages.abs()
+    totals: dict[int, PlaceTotals] = {}
+    for map_id in rollout.map_ids.unique().tolist():
+        here = rollout.map_ids == map_id
+        totals[map_id] = PlaceTotals(int(here.sum().item()), rollout.entropies[here].sum().item(), errors[here].sum().item())
+    return totals
+
+
+def learning_by_place(rollout: Rollout, advantages: torch.Tensor) -> dict[str, float]:
+    """Battle and overworld separately: one average can hide a policy that is sure in one and lost in the other."""
+    require(advantages.shape == rollout.in_battle.shape, f"advantages {tuple(advantages.shape)} must match the rollout")
+    metrics: dict[str, float] = {}
+    for label, here in (("battle", rollout.in_battle), ("overworld", ~rollout.in_battle)):
+        if here.any():
+            metrics[f"entropy_{label}"] = rollout.entropies[here].mean().item()
+            metrics[f"value_error_{label}"] = advantages[here].abs().mean().item()
+    return metrics
 
 
 def make_optimizer(model: nn.Module, config: PPOConfig) -> torch.optim.Optimizer:
@@ -193,9 +227,11 @@ def ppo_update(
     flat_obs = {key: value.flatten(0, 1) for key, value in rollout.obs.items()}
     actions, old_log_probs = rollout.actions.flatten(), rollout.log_probs.flatten()
     old_values, flat_advantages, flat_returns = rollout.values.flatten(), advantages.flatten(), returns.flatten()
-    names = ("policy_loss", "value_loss", "entropy", "approx_kl", "clip_fraction", "grad_norm")
+    names = ("value_loss", "entropy", "approx_kl", "clip_fraction", "grad_norm")
     sums = torch.zeros(len(names), device=device)
     count = 0
+    kl_max = 0.0
+    before = nn.utils.parameters_to_vector(model.parameters()).detach().clone()
     for _ in range(config.epochs):
         order = torch.randperm(total, device=device)
         for start in range(0, total, config.minibatch_size):
@@ -221,9 +257,14 @@ def ppo_update(
             check_finite(grad_norm, "gradient norm")
             optimizer.step()
             with torch.no_grad():
-                sums += torch.stack([losses.policy, losses.value, entropy, losses.approx_kl, losses.clip_fraction, grad_norm])
+                sums += torch.stack([losses.value, entropy, losses.approx_kl, losses.clip_fraction, grad_norm])
+                kl_max = max(kl_max, losses.approx_kl.item())
             count += 1
     require(count > 0, "the update ran no minibatches")
     metrics: dict[str, float] = dict(zip(names, (sums / count).tolist(), strict=True))
     metrics["explained_variance"] = explained_variance(old_values, flat_returns)
+    metrics["approx_kl_max"] = kl_max
+    after = nn.utils.parameters_to_vector(model.parameters()).detach()
+    metrics["weight_norm"] = after.norm().item()
+    metrics["update_ratio"] = (after - before).norm().item() / max(metrics["weight_norm"], _ADVANTAGE_EPS)
     return metrics

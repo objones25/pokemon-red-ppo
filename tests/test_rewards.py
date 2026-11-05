@@ -8,7 +8,7 @@ from hypothesis import strategies as st
 
 from pokered.frame import EVENT_FLAG_BYTES, GameFrame
 from pokered.rewards import (
-    LEVEL_CAP_BY_BADGES,
+    GYM_ACE_LEVEL_BY_BADGES,
     MUSEUM_TICKET,
     BadgeGain,
     EpisodeReward,
@@ -171,51 +171,91 @@ def test_badge_pays_nothing_when_bit_returns_after_clearing():
     assert term(frame(badges=0b1)) == pytest.approx(0.0)
 
 
-# --- LevelGain: training pays, grinding past the next gym does not --------
+# --- LevelGain: each Pokemon pays up to the next gym's ace, and storing one costs nothing ---
 
 
-def test_level_cap_table_matches_gym_leader_team_totals():
-    # Team totals from pret/pokered parties.asm: Brock, Misty, Surge, Erika, Koga, Sabrina, Blaine, Giovanni, Lance.
-    assert LEVEL_CAP_BY_BADGES == (26, 39, 63, 82, 156, 156, 171, 226, 292)
+def test_level_cap_table_matches_each_gym_leaders_highest_level():
+    # pret/pokered parties.asm aces: Brock, Misty, Surge, Erika, Koga, Sabrina, Blaine, Giovanni, Lance.
+    assert GYM_ACE_LEVEL_BY_BADGES == (14, 21, 24, 29, 43, 43, 47, 50, 62)
 
 
-def test_level_pays_weight_per_level_below_cap():
+def test_level_pays_weight_per_level_below_the_ace():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
     assert term(frame(levels=(9,))) == pytest.approx(1.5)
 
 
-def test_level_pays_only_up_to_cap_for_current_badges():
+def test_overleveled_starter_stops_paying_at_the_ace():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
-    assert term(frame(levels=(40,))) == pytest.approx(0.5 * (26 - 6))
+    assert term(frame(levels=(20,))) == pytest.approx(0.5 * (14 - 6))
 
 
-def test_level_pays_nothing_for_grinding_past_cap():
+def test_level_past_the_ace_pays_nothing():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
-    term(frame(levels=(26,)))
+    term(frame(levels=(14,)))
     assert term(frame(levels=(50,))) == pytest.approx(0.0)
 
 
-def test_level_badge_raises_cap_for_levels_already_earned():
+def test_second_pokemon_earns_up_to_the_ace_even_with_the_starter_past_it():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(30,)))
+    term(frame(levels=(30, 8)))
+    assert term(frame(levels=(30, 14))) == pytest.approx(0.5 * (14 - 8))
+
+
+def test_second_pokemon_stops_paying_at_the_ace():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(30, 8)))
+    assert term(frame(levels=(30, 40))) == pytest.approx(0.5 * (14 - 8))
+
+
+def test_slot_order_does_not_change_the_pay():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(10, 8)))
+    assert term(frame(levels=(8, 10))) == pytest.approx(0.0)
+
+
+def test_badge_raises_the_ace_for_levels_already_earned():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
-    term(frame(levels=(30,)))
-    assert term(frame(levels=(30,), badges=0b1)) == pytest.approx(0.5 * (30 - 26))
+    term(frame(levels=(18,)))
+    assert term(frame(levels=(18,), badges=0b1)) == pytest.approx(0.5 * (18 - 14))
 
 
-def test_level_pays_nothing_for_regaining_levels_after_depositing_a_pokemon():
+def test_storing_a_pokemon_never_takes_reward_back():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(10, 10)))
+    assert term(frame(levels=(10,))) == pytest.approx(0.0)
+
+
+def test_withdrawing_a_stored_pokemon_pays_nothing():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(10, 10)))
     term(frame(levels=(10,)))
     assert term(frame(levels=(10, 10))) == pytest.approx(0.0)
 
 
-def test_level_counts_whole_party():
+def test_swapping_in_fresh_catches_cannot_earn_the_same_levels_again():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(14, 14)))
+    term(frame(levels=(14,)))
+    assert term(frame(levels=(14, 14))) == pytest.approx(0.0)
+
+
+def test_catching_a_pokemon_pays_its_level_once():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
     assert term(frame(levels=(6, 4))) == pytest.approx(2.0)
+
+
+@given(st.lists(st.lists(st.integers(1, 100), min_size=1, max_size=6).map(tuple), min_size=1, max_size=40))
+def test_lifetime_pay_never_exceeds_six_pokemon_at_the_last_ace(trajectory):
+    term = LevelGain(weight=1.0)
+    term.reset(frame(levels=(1,)))
+    total = sum(term(frame(levels=levels, badges=0xFF)) for levels in trajectory)
+    assert total <= 6 * GYM_ACE_LEVEL_BY_BADGES[-1]
 
 
 # --- EpisodeReward and the anti-farming properties -----------------------
@@ -277,4 +317,4 @@ def test_grinding_forever_earns_at_most_the_level_budget():
     episode = _episode()
     episode.reset(frame(levels=(6,)))
     total = sum(sum(episode.step(frame(levels=(level,))).values()) for level in range(6, 101))
-    assert total == pytest.approx(0.5 * (26 - 6))
+    assert total == pytest.approx(0.5 * (14 - 6))

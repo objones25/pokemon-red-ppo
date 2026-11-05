@@ -104,3 +104,20 @@ def test_milestone_refuses_no_condition():
 def test_milestone_refuses_flag_outside_the_array(flag):
     with pytest.raises(CheckFailed, match="flag"):
         Milestone("outside", flag=flag)
+
+
+def test_item_milestone_needs_the_item_in_the_bag():
+    milestone = Milestone("scope", item=0x48)
+    bare = GameFrame(map_id=0, x=0, y=0, in_battle=False, event_flags=bytes(EVENT_FLAG_BYTES), badges=0, party_levels=(), party_hp=(), bag_items=(0x48,))
+    assert milestone.reached(bare) is True
+
+
+def test_move_milestone_needs_the_move_in_the_party():
+    milestone = Milestone("cut", move=0x0F)
+    bare = GameFrame(map_id=0, x=0, y=0, in_battle=False, event_flags=bytes(EVENT_FLAG_BYTES), badges=0, party_levels=(), party_hp=(), party_moves=(1, 2, 3, 4))
+    assert milestone.reached(bare) is False
+
+
+@pytest.mark.parametrize("name", ["beat_cerulean_rival", "got_ss_ticket", "trashed_house", "knows_cut", "has_silph_scope"])
+def test_story_chain_tracks_the_steps_past_misty(name):
+    assert name in {milestone.name for milestone in MILESTONES}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from dataclasses import replace
 
 import pytest
@@ -84,8 +85,8 @@ def test_truncation_reports_episode_summary(make_env):
     env.reset(seed=0)
     env.step(BUTTONS.index("down"))
     _, _, _, _, info = env.step(BUTTONS.index("down"))
-    assert info["episode"]["length"] == 2
-    assert info["episode"]["explore"] > 0
+    assert info["episode"].detail.length == 2
+    assert info["episode"].detail.map_steps
 
 
 def test_episode_summary_reports_milestones(make_env):
@@ -93,7 +94,7 @@ def test_episode_summary_reports_milestones(make_env):
     env.reset(seed=0)
     env.pyboy.memory[0xD755] |= 0x80  # EVENT_BEAT_BROCK
     *_, info = env.step(BUTTONS.index("b"))
-    assert info["episode"]["milestone_beat_brock"] == pytest.approx(1.0)
+    assert info["episode"].summary["milestone_beat_brock"] == pytest.approx(1.0)
 
 
 def test_event_gain_extends_the_budget(make_env):
@@ -142,3 +143,67 @@ def test_event_flags_observation_matches_flag_bytes(make_env):
 @pytest.mark.parametrize("seed", [0, 1, 2, 3])
 def test_staggered_budget_stays_within_the_full_budget(make_env, seed):
     assert make_env(base_budget=1).reset(seed=seed)[1]["budget"] == 1
+
+
+def test_truncation_reports_the_final_screen_at_full_size(make_env):
+    env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert info["episode"].detail.end.screen.shape == (144, 160)
+
+
+def test_snapshot_state_reloads_in_the_emulator(make_env):
+    env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    env.pyboy.load_state(io.BytesIO(info["episode"].detail.end.state))
+    assert env.pyboy.memory[0xD35E] == info["episode"].detail.end.map_id
+
+
+def test_stall_captures_a_snapshot_at_the_limit(make_env):
+    env = make_env(base_budget=3, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
+    env.reset(seed=0)
+    env.step(BUTTONS.index("b"))
+    env.step(BUTTONS.index("b"))
+    *_, info = env.step(BUTTONS.index("b"))
+    assert (info["episode"].detail.last_stall.kind, info["episode"].detail.last_stall.step) == ("stall", 2)
+
+
+def test_episode_without_a_stall_has_no_stall_snapshot(make_env):
+    env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert info["episode"].detail.last_stall is None
+
+
+def test_new_episode_forgets_the_last_stall(make_env):
+    env = make_env(base_budget=2, budget_per_event=0, stall_steps=1, stagger_first_episode=False)
+    env.reset(seed=0)
+    env.step(BUTTONS.index("b"))
+    env.step(BUTTONS.index("b"))
+    env.reset()
+    *_, info = env.step(BUTTONS.index("b"))
+    assert info.get("episode") is None
+
+
+@pytest.mark.parametrize("key", ["max_level", "party_size", "fights", "blackouts", "dry_steps", "events", "tiles", "badges"])
+def test_episode_summary_keeps_useful_statistics(make_env, key):
+    env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert key in info["episode"].summary
+
+
+@pytest.mark.parametrize("key", ["level_sum", "length", "explore", "event", "badge", "level"])
+def test_episode_summary_drops_totals_that_repeat_another_number(make_env, key):
+    env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert key not in info["episode"].summary
+
+
+def test_step_says_where_the_next_observation_is(make_env):
+    env = make_env()
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert (info["map_id"], info["in_battle"]) == (env.pyboy.memory[0xD35E], False)

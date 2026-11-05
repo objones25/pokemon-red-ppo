@@ -20,7 +20,7 @@ A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique til
 0 for random actions, though its episodes ran twice as long because events extend the budget, and it gained no levels.
 
 `scripts/setup.sh`, `scripts/train.sh`, pinning, SIGTERM saves and self-deletion with the pod-scoped key have run on a real
-A100 pod (`docs/evidence/pod_verification/RESULTS.md`). `launch_pod.sh` and `start.sh` have too, on a smaller GPU. Online W&B has not: no key was available. No full training has run.
+A100 pod (`docs/evidence/pod_verification/RESULTS.md`). `launch_pod.sh` and `start.sh` have too. One full 400M-step run finished on an A100 in 17.6 hours, online to W&B, under the old level cap and metrics: events plateaued near 35 from about 200M, Misty reached 72% of episodes at best, and no episode got the S.S. Ticket.
 Keep this section and **Commands** in step with the code, and do not document commands that do not exist.
 
 ## Requirements
@@ -103,8 +103,11 @@ The core is pure: emulator memory is parsed once into a frozen `GameFrame` (`src
 (`src/pokered/rewards.py`) see only that, so they can be tested without a ROM or emulator. `src/pokered/ram_map.py` holds addresses and typed
 readers.
 
-Rewards are a list of `RewardTerm` objects run by `EpisodeReward`, which returns each term's reward by name. Log those
-per-term values. Adding a term shouldn't require changing the env.
+Rewards are a list of `RewardTerm` objects run by `EpisodeReward`, which returns each term's reward by name. Adding a term shouldn't require changing the env.
+
+`pokered.telemetry` records what each episode did and `pokered.report` turns a window of episodes into scalars, tables and
+stuck-game snapshots. Neither can affect a reward. `docs/METRICS.md` says what's logged and why: keep it in step, and
+don't add a metric that doesn't answer a question there.
 
 `pokered.vec` runs W workers x k envs in lockstep with observations in shared memory, and keeps each truncated env's
 final observation so `pokered.ppo` can bootstrap its value: a time limit never counts as the world ending. Observations
@@ -116,9 +119,9 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 | Term | Pays | Limit |
 |---|---|---|
 | `NewTile` | Once per `(map, x, y)`, outside battle | Tiles in the game |
-| `EventFlagGain` | Once per flag, even if the game clears and re-sets it; flags already set at reset and the museum ticket pay nothing | 2,560 flags |
+| `EventFlagGain` | Once per flag, even if the game clears and re-sets it; flags already set at reset and the museum ticket pay nothing | About 491 of the 2,560 bits can be set and pay |
 | `BadgeGain` | Once per badge | 8 |
-| `LevelGain` | Per party level, up to the next gym leader's team total (`LEVEL_CAP_BY_BADGES`) | 292 total levels |
+| `LevelGain` | Per level, for each of 6 party places ranked by level, up to the next gym leader's ace (`GYM_ACE_LEVEL_BY_BADGES`). Each place keeps its highest level, so storing costs nothing and swapping earns nothing. A catch pays its level. | 6 x 62 levels |
 
 - Terms return this step's reward directly. Paying the change in a running total is what made upstream's stuck penalty
   refund itself.
@@ -126,7 +129,7 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
   removing it cost Squirtle agents events (43.2 vs 51.8). The first reward experiment is a latched nurse heal, the form
   all 41 winning Rubinstein runs used.
 - The level cap and the weights are untested design choices. The cap doesn't account for rival fights, and the level
-  term stays on because neither source's claim about removing it holds up.
+  term stays on because neither source's claim about removing it holds up. Total party level was dropped as a cap: it let one overlevelled starter collect the whole team's allowance.
 
 ## Traps already verified
 
@@ -142,7 +145,7 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
   learn.
 - **Battle animations off saves little by itself.** It cut only one decision (24 frames) from the first attack, and the
   start state already has fast text.
-- **Blackouts:** `D057` reads `FF`, then HP fully restores and money halves. Treat as battle, never as healing.
+- **Blackouts:** `D057` reads `FF`, then HP fully restores and money halves. Treat as battle, never as healing. The game clears `D057` when a battle ends and only then writes `FF`, so the marker can arrive after the fight looks over: `EpisodeTelemetry` credits it to the last fight.
 - **Use `pyboy.stop(save=False)`.** The default writes a `.ram` file next to the ROM, and a later run would load it.
 - **Don't commit the ROM.** It is gitignored, so a pod needs its own copy on the volume.
 - **Evaluate with sampled actions.** The emulator is deterministic, so a deterministic policy repeats one episode.

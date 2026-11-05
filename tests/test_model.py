@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from pokered.buttons import BUTTONS
-from pokered.model import ActorCritic
+from pokered.model import ActorCritic, feature_health
 from pokered.observations import OBSERVATION_SHAPES
 
 
@@ -60,3 +60,27 @@ def test_initial_policy_is_near_uniform():
     logits, _ = ActorCritic()(_batch())
     probs = logits.softmax(1)
     assert probs.max().item() < 0.2
+
+
+def test_features_are_what_the_heads_read():
+    model = ActorCritic()
+    batch = _batch()
+    assert torch.equal(model.actor(model.features(batch)), model(batch)[0])
+
+
+def test_feature_health_finds_a_unit_that_never_fires():
+    features = torch.eye(4)
+    features[:, 3] = 0.0
+    assert feature_health(features)["dead_fraction"] == pytest.approx(0.25)
+
+
+def test_feature_health_rank_of_one_repeated_row_is_one():
+    assert feature_health(torch.ones(8, 4))["feature_rank"] == pytest.approx(1.0)
+
+
+def test_feature_health_rank_of_independent_rows_is_full():
+    assert feature_health(torch.eye(4))["feature_rank"] == pytest.approx(4.0)
+
+
+def test_feature_health_reports_the_mean_row_norm():
+    assert feature_health(torch.eye(4) * 3.0)["feature_norm"] == pytest.approx(3.0)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 from typing import Any
 
 import gymnasium as gym
@@ -15,6 +16,7 @@ from pokered.milestones import MilestoneTracker
 from pokered.negative_space import require
 from pokered.observations import OBSERVATION_SHAPES, FrameStack, VisitedMap, downscale_screen, party_and_badges
 from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, LevelGain, NewTile
+from pokered.telemetry import EpisodeDetail, EpisodeReport, EpisodeTelemetry, Snapshot
 
 
 class PokemonRedEnv(gym.Env):
@@ -33,12 +35,13 @@ class PokemonRedEnv(gym.Env):
         self._events = EventFlagGain(config.event_weight)
         self._reward = EpisodeReward([self._tiles, self._events, BadgeGain(config.badge_weight), LevelGain(config.level_weight)])
         self._milestones = MilestoneTracker()
+        self._telemetry = EpisodeTelemetry(config.stall_steps)
+        self._last_stall: Snapshot | None = None
         self._stack = FrameStack()
         self._visited = VisitedMap()
         self._base_budget = config.base_budget
         self._first_episode = True
         self._steps = 0
-        self._totals: dict[str, float] = {}
 
     def budget_for(self, events_gained: int) -> int:
         require(events_gained >= 0, f"events gained cannot be negative, got {events_gained}")
@@ -54,13 +57,14 @@ class PokemonRedEnv(gym.Env):
         frame = read_frame(self.pyboy.memory)
         self._reward.reset(frame)
         self._milestones.reset(frame)
+        self._telemetry.reset(frame)
+        self._last_stall = None
         self._visited.reset()
         self._stack.reset(self._screen())
         self._steps = 0
-        self._totals = {}
         budget = self.budget_for(0)
         require(budget >= 1, f"an episode needs at least one step, got a budget of {budget}")
-        return self._observation(frame), {"budget": budget}
+        return self._observation(frame), {"budget": budget, "map_id": frame.map_id, "in_battle": frame.in_battle}
 
     def step(self, action: int):
         require(self.action_space.contains(int(action)), f"action {action} is outside the action space")
@@ -70,12 +74,12 @@ class PokemonRedEnv(gym.Env):
         self._stack.push(self._screen())
         self._steps += 1
         self._milestones.update(frame, step=self._steps)
-        for name, value in terms.items():
-            self._totals[name] = self._totals.get(name, 0.0) + value
+        if self._telemetry.update(frame, action=int(action), terms=terms):
+            self._last_stall = self._snapshot("stall", frame)
         truncated = self._steps >= self.budget_for(self._events.gained)
-        info: dict[str, Any] = {"reward_terms": terms}
+        info: dict[str, Any] = {"reward_terms": terms, "map_id": frame.map_id, "in_battle": frame.in_battle}
         if truncated:
-            info["episode"] = self._summary(frame)
+            info["episode"] = self._report(frame)
         require(self._steps <= self.budget_for(self._events.gained), "stepped past the budget without a reset")
         return self._observation(frame), sum(terms.values()), False, truncated, info
 
@@ -95,13 +99,44 @@ class PokemonRedEnv(gym.Env):
             "events": np.frombuffer(frame.event_flags, np.uint8).copy(),
         }
 
-    def _summary(self, frame: GameFrame) -> dict[str, float]:
-        return {
-            **self._totals,
-            "length": self._steps,
+    def _snapshot(self, kind: str, frame: GameFrame) -> Snapshot:  # nsp: ignore NSP001 Snapshot only holds what these readers checked
+        state = io.BytesIO()
+        self.pyboy.save_state(state)
+        return Snapshot(
+            kind=kind,
+            step=self._steps,
+            dry_steps=self._telemetry.dry_steps,
+            map_id=frame.map_id,
+            x=frame.x,
+            y=frame.y,
+            in_battle=frame.in_battle,
+            party_levels=frame.party_levels,
+            screen=np.array(self.pyboy.screen.ndarray[:, :, 0], np.uint8),
+            state=state.getvalue(),
+        )
+
+    def _report(self, frame: GameFrame) -> EpisodeReport:
+        telemetry = self._telemetry
+        require(telemetry.steps == self._steps, f"telemetry saw {telemetry.steps} of {self._steps} steps")
+        summary: dict[str, float] = {
             "tiles": self._tiles.gained,
             "events": self._events.gained,
             "badges": frame.badges.bit_count(),
-            "level_sum": sum(frame.party_levels),
+            "max_level": max(frame.party_levels, default=0),
+            "party_size": len(frame.party_levels),
+            "fights": len(telemetry.fights),
+            "blackouts": telemetry.blackouts,
+            "dry_steps": telemetry.dry_steps,
             **self._milestones.summary(),
         }
+        detail = EpisodeDetail(
+            length=self._steps,
+            flag_steps=dict(telemetry.flag_steps),
+            map_steps=dict(telemetry.map_steps),
+            fights=tuple(telemetry.fights),
+            phase_rewards=dict(telemetry.phase_rewards),
+            action_counts=tuple(telemetry.action_counts),
+            last_stall=self._last_stall,
+            end=self._snapshot("end", frame),
+        )
+        return EpisodeReport(summary=summary, detail=detail)

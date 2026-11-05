@@ -19,6 +19,7 @@ import numpy as np
 
 from pokered.affinity import pin_process
 from pokered.negative_space import check_shape, require
+from pokered.telemetry import EpisodeReport
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class StepResult:
     terminated: np.ndarray
     truncated: np.ndarray
     final_obs: dict[str, np.ndarray]
-    episodes: list[dict[str, float]]
+    episodes: list[EpisodeReport]
 
 
 def _layout(shapes: Mapping[str, tuple[int, ...]], num_envs: int) -> dict[str, tuple[tuple[int, ...], type]]:
@@ -50,6 +51,8 @@ def _layout(shapes: Mapping[str, tuple[int, ...]], num_envs: int) -> dict[str, t
         "rewards": ((num_envs,), np.float32),
         "terminated": ((num_envs,), np.bool_),
         "truncated": ((num_envs,), np.bool_),
+        "map_ids": ((num_envs,), np.uint8),
+        "in_battle": ((num_envs,), np.bool_),
     }
     for key, shape in shapes.items():
         fields[_OBS + key] = ((num_envs, *shape), np.uint8)
@@ -76,6 +79,11 @@ def _write_obs(views: Mapping[str, np.ndarray], prefix: str, slot: int, obs: Map
         views[prefix + key][slot] = value
 
 
+def _write_place(views: Mapping[str, np.ndarray], slot: int, info: Mapping[str, Any]) -> None:  # nsp: ignore NSP001 numpy assignment raises on a bad value
+    views["map_ids"][slot] = info["map_id"]
+    views["in_battle"][slot] = info["in_battle"]
+
+
 def _worker(conn: Connection, factory: Callable[[], Any], memory_name: str, layout: Any, slots: range, seed: int, core: int | None) -> None:
     require(len(slots) >= 1, "a worker needs at least one env")
     if core is not None:
@@ -86,10 +94,12 @@ def _worker(conn: Connection, factory: Callable[[], Any], memory_name: str, layo
     try:
         envs = [factory() for _ in slots]
         while (command := conn.recv()) != _CLOSE:
-            episodes: list[dict[str, float]] = []
+            episodes: list[EpisodeReport] = []
             for slot, env in zip(slots, envs, strict=True):
                 if command == _RESET:
-                    _write_obs(views, _OBS, slot, env.reset(seed=seed + slot)[0])
+                    obs, info = env.reset(seed=seed + slot)
+                    _write_obs(views, _OBS, slot, obs)
+                    _write_place(views, slot, info)
                     continue
                 obs, reward, terminated, truncated, info = env.step(views["actions"][slot])
                 views["rewards"][slot] = reward
@@ -98,8 +108,9 @@ def _worker(conn: Connection, factory: Callable[[], Any], memory_name: str, layo
                 if terminated or truncated:
                     _write_obs(views, _FINAL, slot, obs)
                     episodes.append(info["episode"])
-                    obs = env.reset()[0]
+                    obs, info = env.reset()
                 _write_obs(views, _OBS, slot, obs)
+                _write_place(views, slot, info)
             conn.send(("ok", episodes))
     except Exception:  # Reported to the parent, which raises WorkerFailure: a worker has nowhere else to report.
         conn.send(("error", traceback.format_exc()))
@@ -132,6 +143,8 @@ class VecEnv:
         self._views = _views(self._memory.buf, layout)
         self.obs = {key: self._views[_OBS + key] for key in self._shapes}
         self._final = {key: self._views[_FINAL + key] for key in self._shapes}
+        self.map_ids = self._views["map_ids"]
+        self.in_battle = self._views["in_battle"]
         context = mp.get_context("spawn")
         self._connections: list[Connection] = []
         self._processes = []
@@ -167,10 +180,10 @@ class VecEnv:
             episodes=episodes,
         )
 
-    def _exchange(self, command: str) -> list[dict[str, float]]:
+    def _exchange(self, command: str) -> list[EpisodeReport]:
         for connection in self._connections:
             connection.send(command)
-        episodes: list[dict[str, float]] = []
+        episodes: list[EpisodeReport] = []
         for connection in self._connections:
             if not connection.poll(_REPLY_TIMEOUT_S):
                 raise WorkerFailure(f"no reply within {_REPLY_TIMEOUT_S} s")
@@ -199,6 +212,7 @@ class VecEnv:
                 process.join(timeout=10)
         self.obs = {}
         self._final = {}
+        self.map_ids = self.in_battle = np.empty(0)
         self._views = {}
         self._memory.close()
         self._memory.unlink()

@@ -68,3 +68,18 @@ def test_read_frame_on_start_state_has_level_six_starter():
 @requires_rom
 def test_read_frame_on_start_state_is_in_oaks_lab():
     assert _start_frame().map_id == 40
+
+
+def test_frame_reads_battle_type_opponent_and_trainer_number():
+    frame = read_frame(_Ram({0xD057: 2, 0xD059: 234, 0xD05D: 1}))
+    assert (frame.battle_type, frame.opponent, frame.trainer_number) == (2, 234, 1)
+
+
+def test_frame_reads_the_moves_of_each_party_member():
+    frame = read_frame(_Ram({0xD163: 1, 0xD16B + 8: 15, 0xD16B + 9: 33}))
+    assert frame.party_moves == (15, 33, 0, 0)
+
+
+def test_frame_reads_bag_item_ids():
+    frame = read_frame(_Ram({0xD31D: 2, 0xD31E: 0x48, 0xD31F: 1, 0xD320: 0x04, 0xD321: 5}))
+    assert frame.bag_items == (0x48, 0x04)

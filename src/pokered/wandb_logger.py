@@ -12,6 +12,7 @@ from wandb.errors import UsageError
 
 from pokered.config import WandbMode
 from pokered.negative_space import require
+from pokered.report import Report
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ _OUTSIDE_WORLD_ERRORS: Final = (WandbError, TimeoutError)
 
 class Logger(Protocol):
     def log(self, metrics: dict[str, float], *, step: int) -> None: ...
+    def log_report(self, report: Report, *, step: int) -> None: ...
     def finish(self) -> None: ...
 
 
@@ -48,6 +50,22 @@ class WandbLogger:
     def log(self, metrics: dict[str, float], *, step: int) -> None:
         require(step >= 0, f"logging step cannot be negative, got {step}")
         self._run.log(metrics, step=step)
+
+    def log_report(self, report: Report, *, step: int) -> None:
+        require(step >= 0, f"logging step cannot be negative, got {step}")
+        payload: dict[str, Any] = dict(report.scalars)
+        for name, (columns, rows) in report.tables.items():
+            payload[f"tables/{name}"] = wandb.Table(columns=list(columns), data=[list(row) for row in rows])
+        if report.snapshots:
+            payload["stuck/screens"] = [
+                wandb.Image(
+                    item.screen,
+                    caption=f"{item.kind} at step {item.step}: map {item.map_id} ({item.x},{item.y}), {item.dry_steps} steps without "
+                    f"a new event, levels {list(item.party_levels)}" + (", in battle" if item.in_battle else ""),
+                )
+                for item in report.snapshots
+            ]
+        self._run.log(payload, step=step)
 
     def finish(self) -> None:
         self._run.finish()

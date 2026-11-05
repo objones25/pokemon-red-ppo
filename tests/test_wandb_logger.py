@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 import wandb
 from wandb import errors as wandb_errors
 
+from pokered.report import Report
+from pokered.telemetry import Snapshot
 from pokered.wandb_logger import WandbLogger
 
 
@@ -44,3 +47,12 @@ def test_usage_error_is_not_swallowed(tmp_path, monkeypatch):
     monkeypatch.setattr(wandb, "init", bad_init)
     with pytest.raises(wandb_errors.UsageError, match="bad argument"):
         WandbLogger("run-c", project="test", config={}, mode="online", directory=tmp_path)
+
+
+def test_report_with_tables_and_a_picture_logs_offline(tmp_path):
+    logger = WandbLogger("run-d", project="test", config={}, mode="offline", directory=tmp_path)
+    snapshot = Snapshot("stall", 5, 2, 3, 1, 2, False, (9,), np.zeros((144, 160), np.uint8), b"state")
+    report = Report(scalars={"progress/events_mean": 1.0}, tables={"flags": (("flag",), [("0x001",)])}, snapshots=[snapshot])
+    logger.log_report(report, step=1)
+    logger.finish()
+    assert logger.run_id == "run-d"

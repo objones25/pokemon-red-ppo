@@ -31,6 +31,9 @@ from pokered.model import ActorCritic
 from pokered.negative_space import expect, require, unreachable
 from pokered.observations import OBSERVATION_SHAPES
 from pokered.ppo import Envs
+from pokered.report import build_report, save_report
+from pokered.start_state import START_STATE
+from pokered.telemetry import EpisodeReport
 from pokered.train import pick_device
 from pokered.vec import VecEnv
 
@@ -39,13 +42,13 @@ log = logging.getLogger(__name__)
 _BITS_PER_BYTE = 8
 
 
-def evaluate(model: nn.Module, envs: Envs, *, device: torch.device, seed: int, max_steps: int) -> list[dict[str, float]]:
+def evaluate(model: nn.Module, envs: Envs, *, device: torch.device, seed: int, max_steps: int) -> list[EpisodeReport]:
     """Each env's first episode. Uses its own random stream, so evaluating never changes a training run."""
     require(max_steps >= 1, f"max_steps must be positive, got {max_steps}")
     generator = torch.Generator().manual_seed(seed)
     was_training = model.training
     model.eval()
-    first_episode: dict[int, dict[str, float]] = {}
+    first_episode: dict[int, EpisodeReport] = {}
     try:
         for _ in range(max_steps):
             with torch.inference_mode():
@@ -95,14 +98,20 @@ class EvalConfig:
     envs_per_worker: int = 8
     seed: int = 0
     device: str = "auto"
+    state: Path = START_STATE
+
+
+def env_config_from_checkpoint(stored: dict[str, Any], *, rom: Path, state: Path) -> EnvConfig:
+    """The settings the checkpoint trained with, but this machine's files: a checkpoint from a pod names the pod's paths."""
+    require(stored, "the checkpoint holds no env config")
+    return EnvConfig(**{**stored, "rom": rom, "state": state, "stagger_first_episode": False})
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     config = tyro.cli(EvalConfig)
     payload = expect(CheckpointStore(config.checkpoints).load_latest(), f"no intact checkpoint in {config.checkpoints}")
-    stored = payload["config"]["env"]
-    env_config = EnvConfig(**{**stored, "rom": config.rom, "state": Path(stored["state"]), "stagger_first_episode": False})
+    env_config = env_config_from_checkpoint(payload["config"]["env"], rom=config.rom, state=config.state)
     device = pick_device(config.device)
     model = ActorCritic()
     model.load_state_dict(payload["model"])
@@ -117,10 +126,12 @@ def main() -> None:
     try:
         envs.reset()
         longest = env_config.base_budget + env_config.budget_per_event * EVENT_FLAG_BYTES * _BITS_PER_BYTE
-        report = summarize(evaluate(model, envs, device=device, seed=config.seed, max_steps=longest))
+        episodes = evaluate(model, envs, device=device, seed=config.seed, max_steps=longest)
     finally:
         envs.close()
+    report = summarize([episode.summary for episode in episodes])
     report["env_steps"] = payload["env_steps"]
+    save_report(build_report(episodes, max_snapshots=len(episodes)), config.output.parent, step=payload["env_steps"])
     write_report(config.output, report)
     log.info("wrote %s: %s", config.output, {k: v for k, v in report.items() if k.startswith("milestone_") and v})
 

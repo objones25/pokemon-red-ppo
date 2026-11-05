@@ -9,11 +9,11 @@ from functools import partial
 import numpy as np
 import pytest
 import torch
-from support import ROM, requires_rom
+from support import ROM, fake_episode, requires_rom
 
 from pokered.config import EnvConfig
 from pokered.env import PokemonRedEnv
-from pokered.evaluate import evaluate, summarize, write_report
+from pokered.evaluate import env_config_from_checkpoint, evaluate, summarize, write_report
 from pokered.model import ActorCritic
 from pokered.negative_space import CheckFailed
 from pokered.observations import OBSERVATION_SHAPES
@@ -26,6 +26,8 @@ class ScriptedEnvs:
     def __init__(self, num_envs: int = 3) -> None:
         self.num_envs = num_envs
         self.obs = {key: np.full((num_envs, *shape), 128, np.uint8) for key, shape in OBSERVATION_SHAPES.items()}
+        self.map_ids = np.zeros(num_envs, np.uint8)
+        self.in_battle = np.zeros(num_envs, np.bool_)
         self.steps = np.zeros(num_envs, np.int64)
         self.finished = np.zeros(num_envs, np.int64)
         self.actions: list[list[int]] = []
@@ -37,7 +39,7 @@ class ScriptedEnvs:
         episodes = []
         for slot in np.nonzero(done)[0]:
             self.finished[slot] += 1
-            episodes.append({"env": float(slot), "episode": float(self.finished[slot])})
+            episodes.append(fake_episode(env=float(slot), episode=float(self.finished[slot])))
         self.steps[done] = 0
         return StepResult(
             rewards=np.zeros(self.num_envs, np.float32), terminated=np.zeros(self.num_envs, np.bool_), truncated=done,
@@ -50,11 +52,11 @@ def _evaluate(envs=None, seed=0, max_steps=50):
 
 
 def test_counts_one_episode_per_env():
-    assert sorted(episode["env"] for episode in _evaluate()) == [0.0, 1.0, 2.0]
+    assert sorted(episode.summary["env"] for episode in _evaluate()) == [0.0, 1.0, 2.0]
 
 
 def test_counts_each_envs_first_episode_not_a_later_short_one():
-    assert [episode["episode"] for episode in _evaluate()] == [1.0, 1.0, 1.0]
+    assert [episode.summary["episode"] for episode in _evaluate()] == [1.0, 1.0, 1.0]
 
 
 def test_stops_once_every_env_has_finished():
@@ -137,7 +139,8 @@ def test_real_game_evaluation_reports_every_milestone():
     envs = VecEnv(partial(PokemonRedEnv, config), OBSERVATION_SHAPES, workers=1, envs_per_worker=2, seed=0)
     try:
         envs.reset()
-        report = summarize(evaluate(ActorCritic(), envs, device=torch.device("cpu"), seed=0, max_steps=100))
+        episodes = evaluate(ActorCritic(), envs, device=torch.device("cpu"), seed=0, max_steps=100)
+        report = summarize([episode.summary for episode in episodes])
     finally:
         envs.close()
     assert (report["episodes"], report["milestone_beat_brock"]) == (2, pytest.approx(0.0))
@@ -173,3 +176,9 @@ def test_failed_report_leaves_no_temporary_file(tmp_path):
     with pytest.raises(ValueError, match="JSON"):
         write_report(tmp_path / "eval.json", {"bad": math.nan})
     assert list(tmp_path.iterdir()) == []
+
+
+def test_env_config_from_a_checkpoint_uses_this_machines_rom_and_state(tmp_path):
+    stored = {"rom": "/workspace/rom/Pokemon Red.gb", "state": "/workspace/repo/start.state", "fast_mode": True, "event_weight": 2.0}
+    config = env_config_from_checkpoint(stored, rom=tmp_path / "rom.gb", state=tmp_path / "start.state")
+    assert (config.rom, config.state, config.fast_mode, config.stagger_first_episode) == (tmp_path / "rom.gb", tmp_path / "start.state", True, False)
