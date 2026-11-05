@@ -66,6 +66,11 @@ class TrainConfig:
     terminate_pod_on_exit: bool = False
     pin_workers: bool = False
     numa_node: int = 0
+    # A checkpoint directory a new run starts from: its newest weights and optimizer state, with steps counted from 0.
+    # A checkpoint in this run's own directory still wins, so a restarted pod resumes.
+    init_from: Path | None = None
+    # False collects and reports exactly as training does but never changes the weights: a frozen-policy control.
+    update_policy: bool = True
 
     def __post_init__(self) -> None:
         for name in ("workers", "envs_per_worker", "total_steps", "checkpoint_every_steps", "report_every_steps", "keep_checkpoints"):

@@ -202,6 +202,67 @@ def test_checkpoint_holds_optimizer_state(tmp_path):
     assert payload["optimizer"]["state"]
 
 
+def _weights_equal(a: ActorCritic, b: ActorCritic) -> bool:
+    return all(torch.equal(x, y) for x, y in zip(a.state_dict().values(), b.state_dict().values(), strict=True))
+
+
+def test_frozen_policy_keeps_its_starting_weights(tmp_path):
+    torch.manual_seed(5)
+    before = ActorCritic()
+    model, *_ = _train(replace(_config(tmp_path), update_policy=False), seed=5)
+    assert _weights_equal(model, before)
+
+
+def test_frozen_policy_still_reports_its_episodes(tmp_path):
+    step, report = _train(replace(_config(tmp_path), update_policy=False))[1].reports[-1]
+    assert (step, report.scalars["progress/events_max"]) == (64, pytest.approx(1.0))
+
+
+def test_frozen_policy_logs_no_update_metrics(tmp_path):
+    assert "ppo/approx_kl" not in _train(replace(_config(tmp_path), update_policy=False))[1].records[0][1]
+
+
+def _source_run(tmp_path) -> ActorCritic:
+    """A finished 32-step run in tmp_path/source, whose weights a new run can start from."""
+    model, *_ = _train(_config(tmp_path / "source", total_steps=32))
+    return model
+
+
+def test_init_from_starts_from_the_source_runs_weights(tmp_path):
+    source = _source_run(tmp_path)
+    config = replace(_config(tmp_path / "new"), update_policy=False, init_from=tmp_path / "source" / "checkpoints")
+    model, *_ = _train(config, seed=99)
+    assert _weights_equal(model, source)
+
+
+def test_init_from_counts_steps_from_zero(tmp_path):
+    _source_run(tmp_path)
+    logger = _train(replace(_config(tmp_path / "new"), init_from=tmp_path / "source" / "checkpoints"))[1]
+    assert [step for step, _ in logger.records] == [32, 64]
+
+
+def test_init_from_carries_the_optimizer_state(tmp_path):
+    _source_run(tmp_path)
+    source = _latest(CheckpointStore(tmp_path / "source" / "checkpoints"))
+    config = replace(_config(tmp_path / "new", total_steps=32), update_policy=False, init_from=tmp_path / "source" / "checkpoints")
+    copied = _latest(_train(config)[2])
+    assert torch.equal(copied["optimizer"]["state"][0]["exp_avg"], source["optimizer"]["state"][0]["exp_avg"])
+
+
+def test_resume_wins_over_init_from(tmp_path):
+    _source_run(tmp_path)
+    config = replace(_config(tmp_path / "new", total_steps=32), init_from=tmp_path / "source" / "checkpoints")
+    _train(config)
+    logger = _train(replace(config, total_steps=64))[1]
+    assert [step for step, _ in logger.records] == [64]
+
+
+def test_init_from_an_empty_directory_is_an_operating_error(tmp_path):
+    config = replace(_config(tmp_path / "new"), init_from=tmp_path / "nothing")
+    with pytest.raises(FileNotFoundError, match=r"^no intact checkpoint in .*nothing$"):
+        _train(config)
+
+
 def test_policy_learns_the_paying_action(tmp_path):
     config = TrainConfig(
         env=EnvConfig(rom=tmp_path / "x"),

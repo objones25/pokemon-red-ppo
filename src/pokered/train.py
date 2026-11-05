@@ -164,6 +164,13 @@ def train(config: TrainConfig, model: ActorCritic, envs: Envs, logger: Logger, s
         torch.set_rng_state(saved["rng_cpu"])
         _set_device_rng(device, saved["rng_device"])
         log.info("resumed from %d env steps", env_steps)
+    elif config.init_from is not None:
+        source = CheckpointStore(config.init_from).load_latest()
+        if source is None:
+            raise FileNotFoundError(f"no intact checkpoint in {config.init_from}")
+        model.load_state_dict(source["model"])
+        optimizer.load_state_dict(source["optimizer"])
+        log.info("started from %s at its %d env steps", config.init_from, source["env_steps"])
 
     def save() -> None:
         store.save(
@@ -199,7 +206,7 @@ def train(config: TrainConfig, model: ActorCritic, envs: Envs, logger: Logger, s
                 )
                 _merge_places(places, place_totals(rollout, advantages))
                 by_place = learning_by_place(rollout, advantages)
-                health = ppo_update(model, optimizer, rollout, advantages, returns, config.ppo)
+                health = ppo_update(model, optimizer, rollout, advantages, returns, config.ppo) if config.update_policy else {}
                 finished = time.perf_counter()
                 previous_steps = env_steps
                 env_steps += config.batch_size
