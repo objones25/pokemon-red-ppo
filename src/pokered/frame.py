@@ -9,6 +9,7 @@ from pokered import ram_map
 from pokered.negative_space import require
 
 EVENT_FLAG_BYTES: Final[int] = ram_map.EVENT_FLAGS_BYTES
+NO_SPECIES_OWNED: Final[bytes] = bytes(ram_map.POKEDEX_BYTES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,9 +27,11 @@ class GameFrame:
     trainer_number: int = 0
     party_moves: tuple[int, ...] = ()
     bag_items: tuple[int, ...] = ()
+    pokedex_owned: bytes = NO_SPECIES_OWNED  # one bit per dex number, lowest first
 
     def __post_init__(self) -> None:
         require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
+        require(len(self.pokedex_owned) == ram_map.POKEDEX_BYTES, f"pokedex owned must be {ram_map.POKEDEX_BYTES} bytes")
         require(len(self.party_levels) == len(self.party_hp), "party levels and hp must have one entry per Pokemon")
         require(all(0.0 <= hp <= 1.0 for hp in self.party_hp), f"hp fractions out of range: {self.party_hp}")
         require(0 <= self.badges <= 0xFF, f"badges must fit one byte, got {self.badges}")
@@ -60,4 +63,5 @@ def read_frame(mem: ram_map.Memory) -> GameFrame:
         trainer_number=mem[ram_map.TRAINER_NUMBER],
         party_moves=tuple(mem[address + ram_map.OFF_MOVES + i] for address in party for i in range(ram_map.MOVES_PER_MON)),
         bag_items=tuple(item for item, _ in ram_map.read_bag(mem)),
+        pokedex_owned=bytes(mem[ram_map.POKEDEX_OWNED + i] for i in range(ram_map.POKEDEX_BYTES)),
     )

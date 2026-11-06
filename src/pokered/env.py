@@ -16,7 +16,7 @@ from pokered.frame import GameFrame, read_frame
 from pokered.milestones import MilestoneTracker
 from pokered.negative_space import require
 from pokered.observations import OBSERVATION_SHAPES, FrameStack, VisitedMap, downscale_screen, party_and_badges
-from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, LevelGain, NewTile
+from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, LevelGain, NewSpecies, NewTile
 from pokered.telemetry import EpisodeDetail, EpisodeReport, EpisodeTelemetry, Snapshot
 
 
@@ -34,7 +34,9 @@ class PokemonRedEnv(gym.Env):
         self._state = config.state.read_bytes()
         self._tiles = NewTile(config.tile_weight)
         self._events = EventFlagGain(config.event_weight)
-        self._reward = EpisodeReward([self._tiles, self._events, BadgeGain(config.badge_weight), LevelGain(config.level_weight)])
+        self._reward = EpisodeReward(
+            [self._tiles, self._events, BadgeGain(config.badge_weight), LevelGain(config.level_weight), NewSpecies(config.species_weight)]
+        )
         self._milestones = MilestoneTracker()
         self._telemetry = EpisodeTelemetry(config.stall_steps)
         self._last_stall: Snapshot | None = None

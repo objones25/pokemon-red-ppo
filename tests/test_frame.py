@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 from support import emulator, requires_rom
 
 from pokered.frame import EVENT_FLAG_BYTES, read_frame
+from pokered.ram_map import POKEDEX_BYTES
 from pokered.start_state import START_STATE
 
 
@@ -83,3 +86,19 @@ def test_frame_reads_the_moves_of_each_party_member():
 def test_frame_reads_bag_item_ids():
     frame = read_frame(_Ram({0xD31D: 2, 0xD31E: 0x48, 0xD31F: 1, 0xD320: 0x04, 0xD321: 5}))
     assert frame.bag_items == (0x48, 0x04)
+
+
+def test_frame_reads_every_pokedex_owned_byte_and_not_the_seen_ones():
+    frame = read_frame(_Ram({0xD2F7: 0x01, 0xD2F7 + POKEDEX_BYTES - 1: 0x40, 0xD30A: 0xFF}))
+    assert frame.pokedex_owned == b"\x01" + bytes(POKEDEX_BYTES - 2) + b"\x40"
+
+
+def test_frame_rejects_a_short_pokedex():
+    with pytest.raises(AssertionError, match="pokedex owned must be 19 bytes"):
+        replace(read_frame(_Ram()), pokedex_owned=bytes(18))
+
+
+@requires_rom
+def test_start_state_owns_only_squirtle():
+    owned = int.from_bytes(_start_frame().pokedex_owned, "little")
+    assert owned == 1 << (7 - 1)

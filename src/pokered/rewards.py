@@ -23,6 +23,7 @@ MUSEUM_TICKET: Final[tuple[int, int]] = (0xD754 - ram_map.EVENT_FLAGS_START, 0)
 # reward past this until the next badge. Source: pret/pokered data/trainers/parties.asm (Brock's Onix 14, ...,
 # Giovanni's Rhydon 50, Lance's Dragonite 62).
 GYM_ACE_LEVEL_BY_BADGES: Final[tuple[int, ...]] = (14, 21, 24, 29, 43, 43, 47, 50, 62)
+SPECIES_COUNT: Final[int] = 151
 
 
 def _require_weight(weight: float) -> None:
@@ -112,11 +113,13 @@ class BadgeGain:
 
 @dataclass(slots=True)
 class LevelGain:
-    """Pays per level up to the next gym's ace, for each of the six party places.
+    """Pays per level gained up to the next gym's ace, for each of the six party places.
 
     Places rank the party by level, highest first, and each keeps the highest level it has ever held. That is what
     stops the term being farmed: storing a Pokemon costs nothing, while withdrawing it or levelling a replacement to
     the same level pays nothing, so the lifetime total is at most six times the last ace. No identity is tracked.
+    A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains:
+    on a step the party grows, every place is credited up to its level without pay.
     """
 
     weight: float
@@ -124,6 +127,7 @@ class LevelGain:
     _best: list[int] = field(default_factory=list, repr=False)
     _credited: list[int] = field(default_factory=list, repr=False)
     _most_badges: int = 0
+    _party_size: int = 0
 
     def __post_init__(self) -> None:
         _require_weight(self.weight)
@@ -132,17 +136,20 @@ class LevelGain:
         self._best = _ranked_levels(first.party_levels)
         self._credited = list(self._best)
         self._most_badges = first.badges.bit_count()
+        self._party_size = len(first.party_levels)
         require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
 
     def __call__(self, frame: GameFrame) -> float:
         self._most_badges = max(self._most_badges, frame.badges.bit_count())
         ace = GYM_ACE_LEVEL_BY_BADGES[self._most_badges]
+        joined = len(frame.party_levels) > self._party_size
+        self._party_size = len(frame.party_levels)
         gained = 0
         for place, level in enumerate(_ranked_levels(frame.party_levels)):
             self._best[place] = max(self._best[place], level)
             earned = min(self._best[place], ace)
             if earned > self._credited[place]:
-                gained += earned - self._credited[place]
+                gained += 0 if joined else earned - self._credited[place]
                 self._credited[place] = earned
         require(gained >= 0, f"a level gain cannot be negative, got {gained}")
         return self.weight * gained
@@ -152,6 +159,32 @@ def _ranked_levels(levels: tuple[int, ...]) -> list[int]:
     """Levels highest first, with zeros for empty places."""
     require(len(levels) <= ram_map.MAX_PARTY, f"a party holds at most {ram_map.MAX_PARTY}, got {len(levels)}")
     return sorted(levels, reverse=True) + [0] * (ram_map.MAX_PARTY - len(levels))
+
+
+# The Pokedex owned bits hold 152 places for 151 species; the last bit is never a species.
+_ALL_SPECIES: Final[int] = (1 << SPECIES_COUNT) - 1
+
+
+@dataclass(slots=True)
+class NewSpecies:
+    """Pays once per species owned, however it was got: a second Magikarp pays nothing."""
+
+    weight: float
+    name: str = "species"
+    _seen: int = 0
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._seen = int.from_bytes(first.pokedex_owned, "little") & _ALL_SPECIES
+
+    def __call__(self, frame: GameFrame) -> float:
+        current = int.from_bytes(frame.pokedex_owned, "little") & _ALL_SPECIES
+        new = current & ~self._seen
+        self._seen |= current
+        require(self._seen.bit_count() <= SPECIES_COUNT, f"owned more than {SPECIES_COUNT} species")
+        return self.weight * new.bit_count()
 
 
 class EpisodeReward:

@@ -7,6 +7,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from pokered.frame import EVENT_FLAG_BYTES, GameFrame
+from pokered.ram_map import POKEDEX_BYTES
 from pokered.rewards import (
     GYM_ACE_LEVEL_BY_BADGES,
     MUSEUM_TICKET,
@@ -14,15 +15,28 @@ from pokered.rewards import (
     EpisodeReward,
     EventFlagGain,
     LevelGain,
+    NewSpecies,
     NewTile,
 )
 
 NO_FLAGS = bytes(EVENT_FLAG_BYTES)
+NO_SPECIES = bytes(POKEDEX_BYTES)
 
 
-def frame(*, tile=(0, 0, 0), in_battle=False, flags=NO_FLAGS, badges=0, levels=(6,)) -> GameFrame:
+def frame(*, tile=(0, 0, 0), in_battle=False, flags=NO_FLAGS, badges=0, levels=(6,), owned=NO_SPECIES) -> GameFrame:
     map_id, x, y = tile
-    return GameFrame(map_id=map_id, x=x, y=y, in_battle=in_battle, event_flags=flags, badges=badges, party_levels=levels, party_hp=tuple(1.0 for _ in levels))
+    return GameFrame(
+        map_id=map_id, x=x, y=y, in_battle=in_battle, event_flags=flags, badges=badges, party_levels=levels,
+        party_hp=tuple(1.0 for _ in levels), pokedex_owned=owned,
+    )  # fmt: skip
+
+
+def owned_with(*dex_numbers: int) -> bytes:
+    """Pokedex owned bits: dex number n is bit (n - 1) % 8 of byte (n - 1) // 8, as in pret wPokedexOwned."""
+    data = bytearray(POKEDEX_BYTES)
+    for number in dex_numbers:
+        data[(number - 1) // 8] |= 1 << ((number - 1) % 8)
+    return bytes(data)
 
 
 def flags_with(*bits: tuple[int, int]) -> bytes:
@@ -244,10 +258,37 @@ def test_swapping_in_fresh_catches_cannot_earn_the_same_levels_again():
     assert term(frame(levels=(14, 14))) == pytest.approx(0.0)
 
 
-def test_catching_a_pokemon_pays_its_level_once():
+def test_a_pokemon_pays_nothing_for_the_level_it_joins_at():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))
-    assert term(frame(levels=(6, 4))) == pytest.approx(2.0)
+    assert term(frame(levels=(6, 4))) == pytest.approx(0.0)
+
+
+def test_a_bought_level_5_magikarp_pays_no_levels():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(21,), badges=0b1))
+    assert term(frame(levels=(21, 5), badges=0b1)) == pytest.approx(0.0)
+
+
+def test_a_new_pokemon_pays_for_each_level_it_gains_after_joining():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(6,)))
+    term(frame(levels=(6, 4)))
+    assert term(frame(levels=(6, 7))) == pytest.approx(0.5 * (7 - 4))
+
+
+def test_a_new_pokemon_still_stops_paying_at_the_ace():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(6,)))
+    term(frame(levels=(6, 4)))
+    assert term(frame(levels=(6, 30))) == pytest.approx(0.5 * (14 - 4))
+
+
+def test_the_starter_still_pays_for_levels_when_another_pokemon_joins_later():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(6,)))
+    term(frame(levels=(6, 4)))
+    assert term(frame(levels=(9, 4))) == pytest.approx(0.5 * (9 - 6))
 
 
 @given(st.lists(st.lists(st.integers(1, 100), min_size=1, max_size=6).map(tuple), min_size=1, max_size=40))
@@ -258,17 +299,67 @@ def test_lifetime_pay_never_exceeds_six_pokemon_at_the_last_ace(trajectory):
     assert total <= 6 * GYM_ACE_LEVEL_BY_BADGES[-1]
 
 
+# --- NewSpecies: each species owned pays once ----------------------------
+
+
+def test_species_pays_weight_for_a_newly_owned_species():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame(owned=owned_with(7)))
+    assert term(frame(owned=owned_with(7, 129))) == pytest.approx(1.0)
+
+
+def test_species_pays_nothing_for_species_owned_at_episode_start():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame(owned=owned_with(7)))
+    assert term(frame(owned=owned_with(7))) == pytest.approx(0.0)
+
+
+def test_species_pays_once_however_many_of_it_are_caught():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame(owned=owned_with(7)))
+    term(frame(owned=owned_with(7, 129)))
+    assert term(frame(owned=owned_with(7, 129))) == pytest.approx(0.0)
+
+
+def test_species_pays_per_species_owned_in_one_step():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame(owned=owned_with(7)))
+    assert term(frame(owned=owned_with(7, 16, 151))) == pytest.approx(2.0)
+
+
+def test_species_pays_nothing_when_a_bit_returns_after_clearing():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame())
+    term(frame(owned=owned_with(25)))
+    term(frame())
+    assert term(frame(owned=owned_with(25))) == pytest.approx(0.0)
+
+
+def test_species_forgets_what_it_paid_for_on_reset():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame())
+    term(frame(owned=owned_with(25)))
+    term.reset(frame())
+    assert term(frame(owned=owned_with(25))) == pytest.approx(1.0)
+
+
+def test_species_lifetime_pay_is_at_most_151():
+    term = NewSpecies(weight=1.0)
+    term.reset(frame())
+    assert term(frame(owned=bytes([0xFF] * POKEDEX_BYTES))) == pytest.approx(151.0)
+
+
 # --- EpisodeReward and the anti-farming properties -----------------------
 
 
 def _episode() -> EpisodeReward:
-    return EpisodeReward([NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5)])
+    return EpisodeReward([NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5), NewSpecies(weight=1.0)])
 
 
 def test_episode_reward_reports_each_term_by_name():
     episode = _episode()
     episode.reset(frame())
-    assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx({"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0})
+    assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx({"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0})
 
 
 def test_episode_reward_requires_reset_before_step():
@@ -294,6 +385,7 @@ frames = st.builds(
     event_flags=st.lists(st.tuples(st.integers(0, EVENT_FLAG_BYTES - 1), st.integers(0, 7)), max_size=4).map(lambda bits: flags_with(*bits)),
     badges=st.integers(0, 255),
     party_levels=st.lists(st.integers(1, 100), min_size=1, max_size=6).map(tuple),
+    pokedex_owned=st.lists(st.integers(1, 151), max_size=4).map(lambda numbers: owned_with(*numbers)),
 )
 
 

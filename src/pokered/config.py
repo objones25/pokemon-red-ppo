@@ -21,6 +21,7 @@ class EnvConfig:
     event_weight: float = 2.0
     badge_weight: float = 5.0
     level_weight: float = 0.5
+    species_weight: float = 1.0
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True
