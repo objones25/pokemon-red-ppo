@@ -445,3 +445,21 @@ def test_launch_explains_that_a_dropped_connection_does_not_stop_training(mac, t
     _fake_tool(tmp_path / "bin", "ssh", 'case "$*" in *start.sh*) exit 255 ;; *) cat >/dev/null ;; esac')
     result = _run(LAUNCH, mac, "1.2.3.4", "2222")
     assert "keeps running" in result.stderr
+
+
+def test_launch_passes_the_run_name_to_start(mac, tmp_path):
+    _run(LAUNCH, {**mac, "POKERED_RUN_NAME": "run3"}, "1.2.3.4", "2222")
+    last = (tmp_path / "ssh.log").read_text().splitlines()[-1]
+    assert "POKERED_RUN_NAME=run3 scripts/start.sh" in last
+
+
+def test_launch_without_a_run_name_leaves_start_to_its_default(mac, tmp_path):
+    _run(LAUNCH, mac, "1.2.3.4", "2222")
+    assert "POKERED_RUN_NAME" not in (tmp_path / "ssh.log").read_text()
+
+
+def test_launch_refuses_a_run_name_that_is_not_a_plain_word_before_contacting_the_pod(mac, tmp_path):
+    result = _run(LAUNCH, {**mac, "POKERED_RUN_NAME": "run 3;rm"}, "1.2.3.4", "2222")
+    assert result.returncode == 1
+    assert "run name" in result.stderr
+    assert not (tmp_path / "ssh.log").exists()

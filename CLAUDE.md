@@ -82,7 +82,8 @@ uv run python scripts/convert_state.py "Pokemon Red.gb" SOURCE.state DESTINATION
 To train on a pod, from the Mac, with the pod's public IP and external SSH port:
 
 ```bash
-scripts/launch_pod.sh HOST PORT                   # repo and ROM onto the volume, then start.sh in a terminal; rerun to reattach
+POKERED_RUN_NAME=run3 scripts/launch_pod.sh HOST PORT   # repo and ROM onto the volume, then start.sh in a terminal; rerun to reattach
+# Always set POKERED_RUN_NAME: it is the W&B run id and run directory. Pod env vars don't reach SSH, and unset means "main", the first run.
 ```
 
 On the pod, with the repo on the `/workspace` volume and the ROM at `/workspace/rom/Pokemon Red.gb`:

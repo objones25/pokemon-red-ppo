@@ -4,8 +4,10 @@
 # on the volume, uploads the ROM if the volume has none, then runs scripts/start.sh in a terminal, which asks for a W&B key.
 # Safe to rerun: it reattaches to a running trainer. Once training has started, the Mac can sleep.
 #
-# Usage: scripts/launch_pod.sh HOST PORT [pokered-train options]
+# Usage: [POKERED_RUN_NAME=NAME] scripts/launch_pod.sh HOST PORT [pokered-train options]
 #   HOST and PORT are the pod's public IP and the external port mapped to 22/tcp.
+#   POKERED_RUN_NAME names the run (its W&B id and run directory) and is passed on to start.sh. A pod's own env vars
+#   don't reach SSH sessions, so set it here. Unset, start.sh uses "main", the first run's id, and would resume it.
 # Requires: bash 3.2+, ssh with a key the pod accepts, and the ROM at the repo root.
 # Exit status: 1 on a refusal or if the pod never answers; otherwise that of the remote command.
 # Test-only overrides: POKERED_ROM, POKERED_SSH_WAIT_SECONDS, POKERED_SSH_WAIT_ATTEMPTS.
@@ -37,6 +39,10 @@ main() {
   local host=$1 port=$2
   shift 2
   [[ -f $ROM ]] || die "ROM not found at $ROM"
+  local run_name=${POKERED_RUN_NAME:-}
+  if [[ -n $run_name && ! $run_name =~ ^[A-Za-z0-9_-]+$ ]]; then
+    die "run name '$run_name' must be letters, digits, _ or -"
+  fi
 
   # Pods reuse addresses, so remember this one's host key for this run only rather than in ~/.ssh/known_hosts.
   known_hosts=$(mktemp "${TMPDIR:-/tmp}/pokered-known-hosts.XXXXXX") || die "cannot create a temporary file"
@@ -66,6 +72,7 @@ main() {
   fi
 
   local remote="cd $POD_REPO && scripts/start.sh"
+  if [[ -n $run_name ]]; then remote="cd $POD_REPO && POKERED_RUN_NAME=$run_name scripts/start.sh"; fi
   if (($# > 0)); then remote+=$(printf ' %q' "$@"); fi
   local status=0
   ssh -t "${options[@]}" "$remote" || status=$?
