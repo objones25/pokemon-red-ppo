@@ -21,7 +21,9 @@ from pokered.telemetry import EpisodeDetail, EpisodeReport, EpisodeTelemetry, Sn
 
 
 class PokemonRedEnv(gym.Env):
-    """Time is the only way an episode ends, so it always ends as truncated: the value target must bootstrap."""
+    """An episode ends in one of two ways. ``stall_steps`` with no progress (event, badge, level or species) is
+    terminated: the world ends there, so stalling is worth nothing. Running out of budget is truncated, so the value
+    target bootstraps. When both happen on one step it is terminated."""
 
     def __init__(self, config: EnvConfig) -> None:
         super().__init__()
@@ -83,14 +85,16 @@ class PokemonRedEnv(gym.Env):
         self._stack.push(self._screen())
         self._steps += 1
         self._milestones.update(frame, step=self._steps)
-        if self._telemetry.update(frame, action=int(action), terms=terms):
+        terminated = self._telemetry.update(frame, action=int(action), terms=terms)
+        if terminated:
             self._last_stall = self._snapshot("stall", frame)
-        truncated = self._steps >= self.budget_for(self._events.gained)
+        truncated = not terminated and self._steps >= self.budget_for(self._events.gained)
         info: dict[str, Any] = {"reward_terms": terms, "map_id": frame.map_id, "in_battle": frame.in_battle}
-        if truncated:
-            info["episode"] = self._report(frame)
+        if terminated or truncated:
+            info["episode"] = self._report(frame, ended_dry=terminated)
         require(self._steps <= self.budget_for(self._events.gained), "stepped past the budget without a reset")
-        return self._observation(frame), sum(terms.values()), False, truncated, info
+        require(self._telemetry.dry_steps <= self._config.stall_steps, "stepped past the stall limit without a reset")
+        return self._observation(frame), sum(terms.values()), terminated, truncated, info
 
     def close(self) -> None:
         self.pyboy.stop(save=False)
@@ -104,7 +108,7 @@ class PokemonRedEnv(gym.Env):
         return {
             "screens": self._stack.array.copy(),
             "visited": self._visited.crop(frame.map_id, frame.x, frame.y),
-            "party": party_and_badges(frame),
+            "party": party_and_badges(frame, dry_fraction=self._telemetry.dry_steps / self._config.stall_steps),
             "events": np.frombuffer(frame.event_flags, np.uint8).copy(),
         }
 
@@ -124,7 +128,7 @@ class PokemonRedEnv(gym.Env):
             state=state.getvalue(),
         )
 
-    def _report(self, frame: GameFrame) -> EpisodeReport:
+    def _report(self, frame: GameFrame, *, ended_dry: bool) -> EpisodeReport:
         telemetry = self._telemetry
         require(telemetry.steps == self._steps, f"telemetry saw {telemetry.steps} of {self._steps} steps")
         summary: dict[str, float] = {
@@ -136,6 +140,8 @@ class PokemonRedEnv(gym.Env):
             "fights": len(telemetry.fights),
             "blackouts": telemetry.blackouts,
             "dry_steps": telemetry.dry_steps,
+            "ended_dry": float(ended_dry),
+            "late_progress": telemetry.late_progress,
             **self._milestones.summary(),
         }
         detail = EpisodeDetail(

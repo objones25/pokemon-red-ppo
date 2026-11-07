@@ -18,7 +18,7 @@ Image = NDArray[np.uint8]
 OBSERVATION_SHAPES: Final[dict[str, tuple[int, ...]]] = {
     "screens": (3, 72, 80),
     "visited": (1, 48, 48),
-    "party": (2 * ram_map.MAX_PARTY + 1,),
+    "party": (2 * ram_map.MAX_PARTY + 2,),
     "events": (EVENT_FLAG_BYTES,),
 }
 
@@ -100,12 +100,18 @@ class VisitedMap:
         return crop
 
 
-def party_and_badges(frame: GameFrame) -> Image:
-    """HP (scaled to 0-255) and level per slot, then the badge byte."""
+def party_and_badges(frame: GameFrame, *, dry_fraction: float) -> Image:
+    """HP (scaled to 0-255) and level per slot, the badge byte, then how much of the stall limit is used (0-255).
+
+    The episode ends when the stall limit runs out, so the agent must see the count: a deadline it can't see would
+    look random to the critic.
+    """
     require(len(frame.party_levels) <= ram_map.MAX_PARTY, f"party of {len(frame.party_levels)} does not fit the slots")
+    require(0.0 <= dry_fraction <= 1.0, f"dry fraction {dry_fraction} is outside [0, 1]")
     out = np.zeros(OBSERVATION_SHAPES["party"], np.uint8)
     for slot, (hp, level) in enumerate(zip(frame.party_hp, frame.party_levels, strict=True)):
         out[2 * slot] = int(hp * 255)
         out[2 * slot + 1] = level
-    out[-1] = frame.badges
+    out[-2] = frame.badges
+    out[-1] = int(dry_fraction * 255)
     return out

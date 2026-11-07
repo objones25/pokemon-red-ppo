@@ -21,6 +21,7 @@ A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique til
 
 `scripts/setup.sh`, `scripts/train.sh`, pinning, SIGTERM saves and self-deletion with the pod-scoped key have run on a real
 A100 pod (`docs/evidence/pod_verification/RESULTS.md`). `launch_pod.sh` and `start.sh` have too. One full 400M-step run finished on an A100 in 17.6 hours, online to W&B, under the old level cap and metrics: events plateaued near 35 from about 200M, Misty reached 72% of episodes at best, and no episode got the S.S. Ticket. The final checkpoint, frozen, beat Misty in only 25 of 96 first episodes on an A100 (`docs/evidence/first_run/a100/`). Not the cause, as tested: hardware, snapshots, resets, old versus new code, number precision, the evaluator. The cause: from the same weights, PPO updates during the episode took Misty from 39.5% to 84% of first episodes, against frozen weights (`docs/evidence/first_run/update_test/`, `--init-from`, `--no-update-policy`). Training-time rates measure the policy plus its ongoing learning.
+A second 400M run (run2, per-place level cap, `docs/evidence/run2/AUDIT.md`) did worse against Misty (27% at best, 8% at the end) and ended with 54% of its steps stalled in Cerulean Gym: with its starter fainted it kept a level-5 Magikarp out and never took a turn. Since then a Pokemon pays no levels on joining, each new species pays once, and `stall_steps` with no progress ends the episode as terminated. None of this has been trained yet.
 Keep this section and **Commands** in step with the code, and do not document commands that do not exist.
 
 ## Requirements
@@ -110,7 +111,7 @@ stuck-game snapshots. Neither can affect a reward. `docs/METRICS.md` says what's
 don't add a metric that doesn't answer a question there.
 
 `pokered.vec` runs W workers x k envs in lockstep with observations in shared memory, and keeps each truncated env's
-final observation so `pokered.ppo` can bootstrap its value: a time limit never counts as the world ending. Observations
+final observation so `pokered.ppo` can bootstrap its value: running out of budget never counts as the world ending. The one terminal ending is `stall_steps` (10,240) with no event, badge, level or species: run2 spent 54% of its late steps stalled in Cerulean Gym, because with only non-negative rewards and bootstrapped time limits, stalling cost nothing. The share of that limit used is in the `party` observation, so the deadline is visible. Observations
 stay `uint8` until `pokered.model` converts them on the device. `pokered.train` is the only composition root: `train()`
 takes its env, logger and store as arguments, so tests run it on fakes. Workers never import torch.
 

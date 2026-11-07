@@ -10,7 +10,8 @@ episode numbers were dropped because about four episodes finish per update, too 
 |---|---|
 | How far does it get, and how reliably? | `story/<milestone>_rate`, `story/<milestone>_median_step` |
 | Which exact flags does it reach? | `tables/flags` (`reports/report_<step>.json`): flag id, address, bit, rate, median step |
-| Where does it get stuck? | `tables/maps` (`step_share`, `end_share`, `stall_share`), `progress/dry_steps_mean`, `stuck/screens` |
+| Where does it get stuck? | `tables/maps` (`step_share`, `end_share`, `stall_share`), `progress/dry_steps_mean`, `progress/ended_dry_mean` (share of episodes ended by the stall limit), `stuck/screens` |
+| Is the stall limit too tight? | `progress/late_progress_mean`: progress per episode that came after more than half the limit. If it is common, legitimate long stretches are being cut off |
 | What did the game look like at that point? | `stuck/screens` in W&B; `stuck/<step>_<i>_stall_map<id>.png` and `.state` on the volume (the state reloads in PyBoy) |
 | Who does it lose to? | `tables/fights`: per trainer, or per map for wild fights: fights and losses per episode, loss rate, mean party max level; `progress/lost_fights_mean`, `progress/blackouts_mean` |
 | How strong is the party? | `progress/max_level_mean`, `progress/party_size_mean`, and `mean_party_max_level` per fight |
@@ -22,7 +23,7 @@ episode numbers were dropped because about four episodes finish per update, too 
 | Is the network running out of room? | `net/feature_rank`, `net/dead_fraction`, `net/feature_norm`, `ppo/weight_norm` |
 | Is the hardware keeping up? | `perf/steps_per_second`, `perf/update_seconds` |
 
-A stall is `stall_steps` (10,240) with no new event or badge. New tiles don't end one, because an agent can wander and keep collecting them. Each episode keeps the snapshot from its last stall, plus one at its end.
+A stall is `stall_steps` (10,240) with no progress: no new event, badge, level or species. New tiles don't end one, because an agent can wander and keep collecting them. A stall ends the episode as terminated (worth nothing after it), and the share of the limit used is in the observation. So an episode has at most one stall, and its snapshot is the moment it ended; every episode also keeps one at its end.
 
 ## Removed from the first run's log
 

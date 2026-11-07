@@ -150,6 +150,37 @@ def test_story_reward_restarts_the_stall_count():
     assert telemetry.dry_steps == 0
 
 
+@pytest.mark.parametrize("term", ["level", "species"])
+def test_level_and_species_rewards_count_as_progress(term):
+    telemetry = started(stall_steps=3)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={term: 0.5})
+    assert telemetry.dry_steps == 0
+
+
+def test_progress_after_more_than_half_the_stall_limit_counts_as_late():
+    telemetry = started(stall_steps=4)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={"event": 2.0})
+    assert telemetry.late_progress == 1
+
+
+def test_progress_within_half_the_stall_limit_is_not_late():
+    telemetry = started(stall_steps=4)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={"event": 2.0})
+    assert telemetry.late_progress == 0
+
+
+def test_reset_forgets_late_progress():
+    telemetry = started(stall_steps=2)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={"event": 2.0})
+    telemetry.reset(frame())
+    assert telemetry.late_progress == 0
+
+
 def test_dry_steps_count_since_the_last_story_reward():
     telemetry = started()
     telemetry.update(frame(), action=0, terms={"event": 2.0, "badge": 0.0})

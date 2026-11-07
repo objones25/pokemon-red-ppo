@@ -180,12 +180,49 @@ def test_snapshot_state_reloads_in_the_emulator(make_env):
 
 
 def test_stall_captures_a_snapshot_at_the_limit(make_env):
-    env = make_env(base_budget=3, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
+    env = make_env(base_budget=5, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
     env.reset(seed=0)
-    env.step(BUTTONS.index("b"))
     env.step(BUTTONS.index("b"))
     *_, info = env.step(BUTTONS.index("b"))
     assert (info["episode"].detail.last_stall.kind, info["episode"].detail.last_stall.step) == ("stall", 2)
+
+
+def test_episode_ends_as_terminated_after_the_stall_limit_without_progress(make_env):
+    env = make_env(base_budget=5, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
+    env.reset(seed=0)
+    first = env.step(BUTTONS.index("b"))
+    second = env.step(BUTTONS.index("b"))
+    assert (first[2], first[3], second[2], second[3]) == (False, False, True, False)
+
+
+def test_episode_ended_by_the_stall_limit_reports_it(make_env):
+    env = make_env(base_budget=5, budget_per_event=0, stall_steps=1, stagger_first_episode=False)
+    env.reset(seed=0)
+    *_, info = env.step(BUTTONS.index("b"))
+    assert info["episode"].summary["ended_dry"] == pytest.approx(1.0)
+
+
+def test_episode_ended_by_the_budget_is_truncated_and_not_ended_dry(make_env):
+    env = make_env(base_budget=1, budget_per_event=0, stall_steps=5, stagger_first_episode=False)
+    env.reset(seed=0)
+    _, _, terminated, truncated, info = env.step(BUTTONS.index("b"))
+    assert (terminated, truncated, info["episode"].summary["ended_dry"]) == (False, True, pytest.approx(0.0))
+
+
+def test_stall_limit_and_budget_on_the_same_step_ends_as_terminated_only(make_env):
+    env = make_env(base_budget=2, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
+    env.reset(seed=0)
+    env.step(BUTTONS.index("b"))
+    _, _, terminated, truncated, _ = env.step(BUTTONS.index("b"))
+    assert (terminated, truncated) == (True, False)
+
+
+def test_observation_shows_how_much_of_the_stall_limit_is_used(make_env):
+    env = make_env(base_budget=10, budget_per_event=0, stall_steps=4, stagger_first_episode=False)
+    obs, _ = env.reset(seed=0)
+    assert obs["party"][13] == 0
+    obs, *_ = env.step(BUTTONS.index("b"))
+    assert obs["party"][13] == int(0.25 * 255)
 
 
 def test_episode_without_a_stall_has_no_stall_snapshot(make_env):
@@ -196,7 +233,7 @@ def test_episode_without_a_stall_has_no_stall_snapshot(make_env):
 
 
 def test_new_episode_forgets_the_last_stall(make_env):
-    env = make_env(base_budget=2, budget_per_event=0, stall_steps=1, stagger_first_episode=False)
+    env = make_env(base_budget=5, budget_per_event=0, stall_steps=2, stagger_first_episode=False)
     env.reset(seed=0)
     env.step(BUTTONS.index("b"))
     env.step(BUTTONS.index("b"))
@@ -205,7 +242,7 @@ def test_new_episode_forgets_the_last_stall(make_env):
     assert info.get("episode") is None
 
 
-@pytest.mark.parametrize("key", ["max_level", "party_size", "fights", "blackouts", "dry_steps", "events", "tiles", "badges"])
+@pytest.mark.parametrize("key", ["max_level", "party_size", "fights", "blackouts", "dry_steps", "events", "tiles", "badges", "ended_dry", "late_progress"])
 def test_episode_summary_keeps_useful_statistics(make_env, key):
     env = make_env(base_budget=1, budget_per_event=0, stagger_first_episode=False)
     env.reset(seed=0)

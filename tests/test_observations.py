@@ -106,25 +106,35 @@ def test_visited_map_crop_is_empty_for_unknown_map():
 
 
 def test_party_and_badges_encodes_hp_and_level_per_slot():
-    out = party_and_badges(_frame(party_levels=(6, 50), party_hp=(0.5, 1.0)))
+    out = party_and_badges(_frame(party_levels=(6, 50), party_hp=(0.5, 1.0)), dry_fraction=0.0)
     assert out.tolist()[:4] == [127, 6, 255, 50]
 
 
 def test_party_and_badges_leaves_empty_slots_zero():
-    out = party_and_badges(_frame())
+    out = party_and_badges(_frame(), dry_fraction=0.0)
     assert out.tolist()[2:12] == [0] * 10
 
 
 def test_party_and_badges_appends_badge_byte():
-    assert party_and_badges(_frame(badges=0b101)).tolist()[12] == 0b101
+    assert party_and_badges(_frame(badges=0b101), dry_fraction=0.0).tolist()[12] == 0b101
+
+
+@pytest.mark.parametrize(("fraction", "byte"), [(0.0, 0), (0.25, 63), (1.0, 255)])
+def test_party_and_badges_ends_with_the_share_of_the_stall_limit_used(fraction, byte):
+    assert party_and_badges(_frame(), dry_fraction=fraction).tolist()[13] == byte
+
+
+def test_party_and_badges_refuses_a_dry_fraction_outside_zero_to_one():
+    with pytest.raises(AssertionError, match="dry fraction"):
+        party_and_badges(_frame(), dry_fraction=1.5)
 
 
 def test_party_and_badges_has_declared_shape():
-    assert party_and_badges(_frame()).shape == OBSERVATION_SHAPES["party"]
+    assert party_and_badges(_frame(), dry_fraction=0.0).shape == OBSERVATION_SHAPES["party"]
 
 
 @pytest.mark.parametrize(("key", "shape"), [
-    ("screens", (3, 72, 80)), ("visited", (1, 48, 48)), ("party", (13,)), ("events", (320,)),
+    ("screens", (3, 72, 80)), ("visited", (1, 48, 48)), ("party", (14,)), ("events", (320,)),
 ])  # fmt: skip
 def test_observation_shapes(key, shape):
     assert OBSERVATION_SHAPES[key] == shape

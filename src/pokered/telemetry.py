@@ -12,8 +12,9 @@ from pokered.buttons import BUTTONS
 from pokered.frame import GameFrame
 from pokered.negative_space import require
 
-# Tiles don't count: an agent can wander for a long time, still paying for new tiles, without any story progress.
-STORY_TERMS: Final[tuple[str, ...]] = ("event", "badge")
+# What ends a stall. Tiles don't count: an agent can wander for a long time, still paying for new tiles, without any
+# story progress.
+PROGRESS_TERMS: Final[tuple[str, ...]] = ("event", "badge", "level", "species")
 PHASE_STEPS: Final[int] = 10_240
 _TRAINER_OPPONENT_BASE: Final[int] = 200
 
@@ -93,6 +94,7 @@ class EpisodeTelemetry:
     phase_rewards: dict[tuple[str, int], float] = field(default_factory=dict)
     action_counts: list[int] = field(default_factory=list)
     blackouts: int = 0
+    late_progress: int = 0  # progress that came after more than half the stall limit: a sign the limit is tight
     steps: int = 0
     _last_story_step: int = 0
     _seen: int = 0
@@ -104,13 +106,13 @@ class EpisodeTelemetry:
 
     @property
     def dry_steps(self) -> int:
-        """Steps since the last event or badge."""
+        """Steps since the last progress: an event, badge, level or species."""
         return self.steps - self._last_story_step
 
     def reset(self, first: GameFrame) -> None:  # nsp: ignore NSP001 GameFrame validates the flag length
         self.flag_steps, self.map_steps, self.fights, self.phase_rewards = {}, {}, [], {}
         self.action_counts = [0] * len(BUTTONS)
-        self.blackouts = self.steps = self._last_story_step = 0
+        self.blackouts = self.late_progress = self.steps = self._last_story_step = 0
         self._seen = int.from_bytes(first.event_flags, "little")
         self._in_fight = self._in_blackout = False
 
@@ -126,7 +128,9 @@ class EpisodeTelemetry:
         for name, value in terms.items():
             if value > 0.0:
                 self.phase_rewards[(name, phase)] = self.phase_rewards.get((name, phase), 0.0) + value
-        if any(terms.get(name, 0.0) > 0.0 for name in STORY_TERMS):
+        if any(terms.get(name, 0.0) > 0.0 for name in PROGRESS_TERMS):
+            if self.steps - self._last_story_step > self.stall_steps // 2:
+                self.late_progress += 1
             self._last_story_step = self.steps
         require(self.dry_steps >= 0, f"dry steps cannot be negative, got {self.dry_steps}")
         return self.dry_steps == self.stall_steps

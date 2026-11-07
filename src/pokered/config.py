@@ -25,7 +25,7 @@ class EnvConfig:
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True
-    stall_steps: int = 10_240  # Steps with no new event or badge before the game state is saved as stuck.
+    stall_steps: int = 10_240  # Steps with no event, badge, level or species before the episode ends (terminated).
 
 
 @dataclass(frozen=True, slots=True)
