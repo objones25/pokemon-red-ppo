@@ -270,6 +270,44 @@ def test_a_bought_level_5_magikarp_pays_no_levels():
     assert term(frame(levels=(21, 5), badges=0b1)) == pytest.approx(0.0)
 
 
+# The game raises the party count, shows the nickname prompt, and only then writes the level (pret
+# engine/pokemon/add_mon.asm _AddPartyMon), so a joining Pokemon reads level 0 for some steps.
+def test_a_pokemon_whose_level_is_written_after_it_joins_pays_nothing():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(21,), badges=0b1))
+    term(frame(levels=(21, 0), badges=0b1))
+    assert term(frame(levels=(21, 5), badges=0b1)) == pytest.approx(0.0)
+
+
+def test_a_long_nickname_prompt_before_the_level_is_written_still_pays_nothing():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(21,), badges=0b1))
+    for _ in range(3):
+        term(frame(levels=(21, 0), badges=0b1))
+    assert term(frame(levels=(21, 5), badges=0b1)) == pytest.approx(0.0)
+
+
+def test_a_late_written_pokemon_above_the_starter_pays_nothing_on_arrival():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(10,)))
+    term(frame(levels=(10, 0)))
+    assert term(frame(levels=(12, 10))) == pytest.approx(0.0)
+
+
+def test_an_episode_starting_mid_write_pays_nothing_when_the_level_appears():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(21, 0), badges=0b1))
+    assert term(frame(levels=(21, 5), badges=0b1)) == pytest.approx(0.0)
+
+
+def test_a_late_written_pokemon_pays_for_levels_it_gains_afterwards():
+    term = LevelGain(weight=0.5)
+    term.reset(frame(levels=(21,), badges=0b1))
+    term(frame(levels=(21, 0), badges=0b1))
+    term(frame(levels=(21, 5), badges=0b1))
+    assert term(frame(levels=(21, 7), badges=0b1)) == pytest.approx(0.5 * (7 - 5))
+
+
 def test_a_new_pokemon_pays_for_each_level_it_gains_after_joining():
     term = LevelGain(weight=0.5)
     term.reset(frame(levels=(6,)))

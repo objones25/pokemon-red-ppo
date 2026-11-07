@@ -118,8 +118,10 @@ class LevelGain:
     Places rank the party by level, highest first, and each keeps the highest level it has ever held. That is what
     stops the term being farmed: storing a Pokemon costs nothing, while withdrawing it or levelling a replacement to
     the same level pays nothing, so the lifetime total is at most six times the last ace. No identity is tracked.
-    A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains:
-    on a step the party grows, every place is credited up to its level without pay.
+    A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains.
+    The game raises the party count, shows the nickname prompt, and only then writes the level (pret
+    engine/pokemon/add_mon.asm), so a joining Pokemon reads level 0 for some steps. A step joins when the party grows,
+    when a member reads level 0, or when one did on the step before: then every place is credited without pay.
     """
 
     weight: float
@@ -128,6 +130,7 @@ class LevelGain:
     _credited: list[int] = field(default_factory=list, repr=False)
     _most_badges: int = 0
     _party_size: int = 0
+    _was_unwritten: bool = False
 
     def __post_init__(self) -> None:
         _require_weight(self.weight)
@@ -137,13 +140,16 @@ class LevelGain:
         self._credited = list(self._best)
         self._most_badges = first.badges.bit_count()
         self._party_size = len(first.party_levels)
+        self._was_unwritten = 0 in first.party_levels
         require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
 
     def __call__(self, frame: GameFrame) -> float:
         self._most_badges = max(self._most_badges, frame.badges.bit_count())
         ace = GYM_ACE_LEVEL_BY_BADGES[self._most_badges]
-        joined = len(frame.party_levels) > self._party_size
+        unwritten = 0 in frame.party_levels
+        joined = len(frame.party_levels) > self._party_size or unwritten or self._was_unwritten
         self._party_size = len(frame.party_levels)
+        self._was_unwritten = unwritten
         gained = 0
         for place, level in enumerate(_ranked_levels(frame.party_levels)):
             self._best[place] = max(self._best[place], level)
