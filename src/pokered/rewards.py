@@ -8,7 +8,7 @@ refund itself (UPSTREAM_FINDINGS.md D1).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Protocol
 
@@ -115,16 +115,41 @@ class BadgeGain:
 
 
 @dataclass(slots=True)
+class _PartyJoin:
+    """Says whether a Pokemon is joining the party on this step.
+
+    The game raises the party count, shows the nickname prompt, and only then writes the new Pokemon's moves and level
+    (pret engine/pokemon/add_mon.asm), so a joining Pokemon reads level 0 for some steps. A step joins when the party
+    grows, when a member reads level 0, or when one did on the step before.
+    """
+
+    _party_size: int = 0
+    _was_unwritten: bool = False
+
+    def reset(self, first: GameFrame) -> None:
+        self._party_size = len(first.party_levels)
+        self._was_unwritten = 0 in first.party_levels
+        require(
+            self._party_size <= ram_map.MAX_PARTY, f"a party holds at most {ram_map.MAX_PARTY}, got {self._party_size}"
+        )
+
+    def __call__(self, frame: GameFrame) -> bool:
+        unwritten = 0 in frame.party_levels
+        joined = len(frame.party_levels) > self._party_size or unwritten or self._was_unwritten
+        self._party_size = len(frame.party_levels)
+        self._was_unwritten = unwritten
+        return joined
+
+
+@dataclass(slots=True)
 class LevelGain:
     """Pays per level gained up to the next gym's ace plus a margin, for each of the six party places.
 
     Places rank the party by level, highest first, and each keeps the highest level it has ever held. That is what
     stops the term being farmed: storing a Pokemon costs nothing, while withdrawing it or levelling a replacement to
     the same level pays nothing, so the lifetime total is at most six times the last cap. No identity is tracked.
-    A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains.
-    The game raises the party count, shows the nickname prompt, and only then writes the level (pret
-    engine/pokemon/add_mon.asm), so a joining Pokemon reads level 0 for some steps. A step joins when the party grows,
-    when a member reads level 0, or when one did on the step before: then every place is credited without pay.
+    A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains:
+    on a joining step (see ``_PartyJoin``) every place is credited without pay.
     """
 
     weight: float
@@ -132,8 +157,7 @@ class LevelGain:
     _best: list[int] = field(default_factory=list, repr=False)
     _credited: list[int] = field(default_factory=list, repr=False)
     _most_badges: int = 0
-    _party_size: int = 0
-    _was_unwritten: bool = False
+    _join: _PartyJoin = field(default_factory=_PartyJoin, repr=False)
 
     def __post_init__(self) -> None:
         _require_weight(self.weight)
@@ -142,17 +166,13 @@ class LevelGain:
         self._best = _ranked_levels(first.party_levels)
         self._credited = list(self._best)
         self._most_badges = first.badges.bit_count()
-        self._party_size = len(first.party_levels)
-        self._was_unwritten = 0 in first.party_levels
+        self._join.reset(first)
         require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
 
     def __call__(self, frame: GameFrame) -> float:
         self._most_badges = max(self._most_badges, frame.badges.bit_count())
         cap = LEVEL_CAP_BY_BADGES[self._most_badges]
-        unwritten = 0 in frame.party_levels
-        joined = len(frame.party_levels) > self._party_size or unwritten or self._was_unwritten
-        self._party_size = len(frame.party_levels)
-        self._was_unwritten = unwritten
+        joined = self._join(frame)
         gained = 0
         for place, level in enumerate(_ranked_levels(frame.party_levels)):
             self._best[place] = max(self._best[place], level)
@@ -194,6 +214,140 @@ class NewSpecies:
         self._seen |= current
         require(self._seen.bit_count() <= SPECIES_COUNT, f"owned more than {SPECIES_COUNT} species")
         return self.weight * new.bit_count()
+
+
+def _full_hp(frame: GameFrame) -> bool:
+    return all(hp >= 1.0 for hp in frame.party_hp)
+
+
+@dataclass(slots=True)
+class CenterHeal:
+    """Pays once per respawn point, the first time a nurse heal there restores HP.
+
+    Accepting a heal writes the map outside (wLastMap) into the respawn point, then heals the party (pret
+    engine/events/pokecenter.asm). So a heal is a step that takes a hurt party to full HP inside a Pokemon Center
+    whose respawn point is this one. A blackout also heals, but on the battle map before warping
+    (engine/events/black_out.asm), and the other healers (Mom, Oak, Pokemon Tower, Silph Co.) are not in centers. A heal
+    at full HP sets the respawn point but pays nothing and leaves that center unpaid. The respawn point held at reset
+    counts as paid, so the lifetime total is one payment per center.
+    """
+
+    weight: float
+    name: str = "heal"
+    _paid: set[int] = field(default_factory=set, repr=False)
+    _hurt: bool = False
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._paid = {first.respawn_map}
+        self._hurt = not _full_hp(first)
+        require(len(first.party_hp) > 0, "an episode needs a party to heal")
+
+    def __call__(self, frame: GameFrame) -> float:
+        healed = (
+            self._hurt
+            and _full_hp(frame)
+            and not frame.in_battle
+            and frame.map_id in ram_map.POKEMON_CENTER_MAPS
+            and frame.respawn_map == frame.last_map
+        )
+        self._hurt = not _full_hp(frame)
+        if not healed or frame.respawn_map in self._paid:
+            return 0.0
+        before = len(self._paid)
+        self._paid.add(frame.respawn_map)
+        require(len(self._paid) == before + 1, f"respawn point {frame.respawn_map} was paid twice")
+        return self.weight
+
+
+# Move effects whose damage does not scale with power, or that cost the user: pret constants/move_effect_constants.asm.
+EXPLODE_EFFECT: Final[int] = 0x07
+OHKO_EFFECT: Final[int] = 0x26
+SUPER_FANG_EFFECT: Final[int] = 0x28
+SPECIAL_DAMAGE_EFFECT: Final[int] = 0x29
+NO_SCORE_EFFECTS: Final[frozenset[int]] = frozenset(
+    {EXPLODE_EFFECT, OHKO_EFFECT, SUPER_FANG_EFFECT, SPECIAL_DAMAGE_EFFECT}
+)
+# Moves that take two turns to land one hit: charge first (Solar Beam, Dig), fly, or recharge after (Hyper Beam).
+TWO_TURN_EFFECTS: Final[frozenset[int]] = frozenset({0x27, 0x2B, 0x50})
+STAB: Final[float] = 1.5
+
+
+@dataclass(frozen=True, slots=True)
+class MoveScore:
+    type: int
+    score: float
+
+
+def move_scores(moves: Mapping[int, ram_map.Move]) -> dict[int, MoveScore]:
+    """Expected damage per turn before type matchups: power times accuracy, halved for two-turn moves.
+
+    Power 1 marks damage the game computes another way (Counter, Seismic Toss, Dragon Rage, one-hit KOs), and status
+    moves have power 0: all of these score nothing, as do moves that make the user faint.
+    """
+    scores = {}
+    for move_id, move in moves.items():
+        scaled = move.power > 1 and move.effect not in NO_SCORE_EFFECTS
+        score = move.power * move.accuracy / 255 if scaled else 0.0
+        scores[move_id] = MoveScore(move.type, score / 2 if move.effect in TWO_TURN_EFFECTS else score)
+        require(0.0 <= scores[move_id].score <= 255.0, f"move {move_id} scored {scores[move_id].score}")
+    return scores
+
+
+@dataclass(slots=True)
+class MoveGain:
+    """Pays for raising a party place's best total move score, ranked and latched like ``LevelGain``.
+
+    A Pokemon's total is the sum of its four moves' scores, times 1.5 for a move of its own type. Places rank the party
+    by total and each keeps its best, so forgetting and relearning, storing and withdrawing, or reordering pay nothing,
+    and a joining Pokemon is credited without pay. The lifetime total is at most six places of four best moves.
+    """
+
+    weight: float
+    scores: Mapping[int, MoveScore]
+    name: str = "moves"
+    _best: list[float] = field(default_factory=list, repr=False)
+    _join: _PartyJoin = field(default_factory=_PartyJoin, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+        require(len(self.scores) > 0, "MoveGain needs the move table")
+
+    def reset(self, first: GameFrame) -> None:
+        self._best = self._ranked_totals(first, joined=True)
+        self._join.reset(first)
+        require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
+
+    def __call__(self, frame: GameFrame) -> float:
+        joined = self._join(frame)
+        gained = 0.0
+        for place, total in enumerate(self._ranked_totals(frame, joined=joined)):
+            if total > self._best[place]:
+                gained += 0.0 if joined else total - self._best[place]
+                self._best[place] = total
+        require(gained >= 0.0, f"a move gain cannot be negative, got {gained}")
+        return self.weight * gained
+
+    def _ranked_totals(self, frame: GameFrame, *, joined: bool) -> list[float]:
+        """Totals highest first, with zeros for empty places. A joining slot may hold unwritten bytes, so unknown
+        moves count as nothing then; at any other time an unknown move is a misread."""
+        size = len(frame.party_levels)
+        moves_per_mon = ram_map.MOVES_PER_MON
+        require(len(frame.party_moves) == moves_per_mon * size, f"expected {moves_per_mon} moves per Pokemon, got {frame.party_moves}")
+        require(len(frame.party_types) == ram_map.TYPES_PER_MON * size, f"expected 2 types per Pokemon, got {frame.party_types}")
+        totals = []
+        for mon in range(size):
+            types = frame.party_types[ram_map.TYPES_PER_MON * mon : ram_map.TYPES_PER_MON * (mon + 1)]
+            total = 0.0
+            for move_id in frame.party_moves[moves_per_mon * mon : moves_per_mon * (mon + 1)]:
+                move = self.scores.get(move_id)
+                require(move_id == 0 or move is not None or joined, f"move {move_id} is not in the move table")
+                if move is not None:
+                    total += move.score * (STAB if move.type in types else 1.0)
+            totals.append(total)
+        return sorted(totals, reverse=True) + [0.0] * (ram_map.MAX_PARTY - size)
 
 
 class EpisodeReward:

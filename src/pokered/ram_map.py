@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Final, Protocol
 
 from pokered.negative_space import require, unreachable
 
@@ -35,6 +35,11 @@ OPTION_NO_BATTLE_ANIMATION = 0x80
 BADGES = 0xD356
 PLAYER_ID = 0xD359  # 2 bytes
 MAP_ID = 0xD35E
+LAST_MAP = 0xD365  # wLastMap: the outdoor map the player last left, which the nurse records as the respawn point
+RESPAWN_MAP = 0xD719  # wLastBlackoutMap: where a blackout returns the player; set only by an accepted nurse heal
+# Every map with a healing nurse (pret constants/map_constants.asm): the nine city centers, Mt. Moon's, Rock Tunnel's,
+# and the Indigo Plateau lobby.
+POKEMON_CENTER_MAPS: Final[frozenset[int]] = frozenset({0x29, 0x3A, 0x40, 0x44, 0x51, 0x59, 0x85, 0x8D, 0x9A, 0xAB, 0xAE, 0xB6})
 Y_POS = 0xD361
 X_POS = 0xD362
 FACING = 0xC109
@@ -61,6 +66,7 @@ OFF_SPECIES = 0
 OFF_HP = 1
 OFF_STATUS = 4
 OFF_TYPES = 5
+TYPES_PER_MON = 2
 OFF_MOVES = 8
 OFF_OT_ID = 12
 OFF_EXP = 14

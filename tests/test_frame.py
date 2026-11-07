@@ -102,3 +102,25 @@ def test_frame_rejects_a_short_pokedex():
 def test_start_state_owns_only_squirtle():
     owned = int.from_bytes(_start_frame().pokedex_owned, "little")
     assert owned == 1 << (7 - 1)
+
+
+def test_frame_reads_the_respawn_map_and_the_map_last_left():
+    frame = read_frame(_Ram({0xD719: 2, 0xD365: 3}))
+    assert (frame.respawn_map, frame.last_map) == (2, 3)
+
+
+def test_frame_reads_both_types_of_each_party_member():
+    frame = read_frame(
+        _Ram({0xD163: 2, 0xD16B + 5: 0x15, 0xD16B + 6: 0x15, 0xD16B + 44 + 5: 0x16, 0xD16B + 44 + 6: 0x03})
+    )
+    assert frame.party_types == (0x15, 0x15, 0x16, 0x03)
+
+
+def test_frame_rejects_types_that_do_not_match_the_party():
+    with pytest.raises(AssertionError, match="2 types per Pokemon"):
+        replace(read_frame(_Ram({0xD163: 1})), party_types=(0x15,))
+
+
+@requires_rom
+def test_start_state_respawns_in_pallet_town():
+    assert _start_frame().respawn_map == 0

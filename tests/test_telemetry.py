@@ -150,8 +150,8 @@ def test_story_reward_restarts_the_stall_count():
     assert telemetry.dry_steps == 0
 
 
-@pytest.mark.parametrize("term", ["level", "species"])
-def test_level_and_species_rewards_count_as_progress(term):
+@pytest.mark.parametrize("term", ["level", "species", "heal", "moves"])
+def test_level_species_heal_and_move_rewards_count_as_progress(term):
     telemetry = started(stall_steps=3)
     telemetry.update(frame(), action=0, terms=NO_TERMS)
     telemetry.update(frame(), action=0, terms={term: 0.5})

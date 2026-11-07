@@ -5,30 +5,55 @@ from __future__ import annotations
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from support import ROM, requires_rom
 
 from pokered.frame import EVENT_FLAG_BYTES, GameFrame
-from pokered.ram_map import POKEDEX_BYTES
+from pokered.ram_map import POKEDEX_BYTES, Move, RomTables
 from pokered.rewards import (
     GYM_ACE_LEVEL_BY_BADGES,
     LEVEL_CAP_BY_BADGES,
     MUSEUM_TICKET,
     BadgeGain,
+    CenterHeal,
     EpisodeReward,
     EventFlagGain,
     LevelGain,
+    MoveGain,
     NewSpecies,
     NewTile,
+    move_scores,
 )
 
 NO_FLAGS = bytes(EVENT_FLAG_BYTES)
 NO_SPECIES = bytes(POKEDEX_BYTES)
 
+# pret constants/type_constants.asm and map_constants.asm.
+NORMAL, WATER = 0x00, 0x15
+PALLET_TOWN, PEWTER_CITY, CERULEAN_CITY, ROUTE_3 = 0x00, 0x02, 0x03, 0x0E
+PEWTER_POKECENTER, CERULEAN_POKECENTER = 0x3A, 0x40
 
-def frame(*, tile=(0, 0, 0), in_battle=False, flags=NO_FLAGS, badges=0, levels=(6,), owned=NO_SPECIES) -> GameFrame:
+
+def frame(
+    *,
+    tile=(0, 0, 0),
+    in_battle=False,
+    flags=NO_FLAGS,
+    badges=0,
+    levels=(6,),
+    owned=NO_SPECIES,
+    hp=None,
+    respawn=0,
+    last_map=0,
+    moves=None,
+    types=None,
+) -> GameFrame:
+    """Defaults: every Pokemon at full HP, knowing no moves, Water type; respawn in Pallet Town."""
     map_id, x, y = tile
     return GameFrame(
         map_id=map_id, x=x, y=y, in_battle=in_battle, event_flags=flags, badges=badges, party_levels=levels,
-        party_hp=tuple(1.0 for _ in levels), pokedex_owned=owned,
+        party_hp=hp if hp is not None else tuple(1.0 for _ in levels), pokedex_owned=owned, respawn_map=respawn,
+        last_map=last_map, party_moves=moves if moves is not None else (0,) * 4 * len(levels),
+        party_types=types if types is not None else (WATER, WATER) * len(levels),
     )  # fmt: skip
 
 
@@ -392,17 +417,306 @@ def test_species_lifetime_pay_is_at_most_151():
     assert term(frame(owned=bytes([0xFF] * POKEDEX_BYTES))) == pytest.approx(151.0)
 
 
+# --- CenterHeal: the first nurse heal that restores HP at each respawn point pays once ---
+# The nurse writes wLastMap into wLastBlackoutMap, then heals the party (pret engine/events/pokecenter.asm). A blackout
+# heals on the battle map before warping (engine/events/black_out.asm), and other healers are not Pokemon Centers.
+
+
+def _at_pewter_center(*, hp=(1.0,), respawn=PEWTER_CITY) -> GameFrame:
+    return frame(tile=(PEWTER_POKECENTER, 3, 3), levels=(12,) * len(hp), hp=hp, respawn=respawn, last_map=PEWTER_CITY)
+
+
+def test_heal_pays_weight_when_a_nurse_restores_hp_at_a_new_center():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    assert term(_at_pewter_center()) == pytest.approx(5.0)
+
+
+def test_heal_pays_for_a_fainted_pokemon_restored_with_the_rest_at_full():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(1.0, 0.0), respawn=PALLET_TOWN))
+    assert term(_at_pewter_center(hp=(1.0, 1.0))) == pytest.approx(5.0)
+
+
+def test_heal_pays_nothing_when_the_party_was_already_at_full_hp():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(respawn=PALLET_TOWN))
+    assert term(_at_pewter_center()) == pytest.approx(0.0)
+
+
+def test_a_heal_at_full_hp_does_not_use_up_the_center():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(respawn=PALLET_TOWN))
+    term(_at_pewter_center())
+    term(_at_pewter_center(hp=(0.5,)))
+    assert term(_at_pewter_center()) == pytest.approx(5.0)
+
+
+def test_a_second_heal_at_the_same_center_pays_nothing():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    term(_at_pewter_center())
+    term(_at_pewter_center(hp=(0.5,)))
+    assert term(_at_pewter_center()) == pytest.approx(0.0)
+
+
+def test_a_heal_at_a_different_center_pays_again():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    term(_at_pewter_center())
+    term(frame(tile=(CERULEAN_POKECENTER, 3, 3), hp=(0.5,), respawn=PEWTER_CITY, last_map=CERULEAN_CITY))
+    assert term(
+        frame(tile=(CERULEAN_POKECENTER, 3, 3), respawn=CERULEAN_CITY, last_map=CERULEAN_CITY)
+    ) == pytest.approx(5.0)
+
+
+def test_a_blackout_heal_on_a_route_pays_nothing():
+    term = CenterHeal(weight=5.0)
+    term.reset(frame(tile=(ROUTE_3, 5, 5), in_battle=True, hp=(0.0,), respawn=PEWTER_CITY, last_map=PEWTER_CITY))
+    assert term(frame(tile=(ROUTE_3, 5, 5), respawn=PEWTER_CITY, last_map=PEWTER_CITY)) == pytest.approx(0.0)
+
+
+def test_hp_restored_in_a_center_without_a_nurse_heal_there_pays_nothing():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    assert term(_at_pewter_center(respawn=PALLET_TOWN)) == pytest.approx(0.0)
+
+
+def test_heal_pays_nothing_for_the_respawn_point_held_at_episode_start():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,)))
+    assert term(_at_pewter_center()) == pytest.approx(0.0)
+
+
+def test_heal_forgets_the_centers_it_paid_for_on_reset():
+    term = CenterHeal(weight=5.0)
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    term(_at_pewter_center())
+    term.reset(_at_pewter_center(hp=(0.4,), respawn=PALLET_TOWN))
+    assert term(_at_pewter_center()) == pytest.approx(5.0)
+
+
+def test_heal_rejects_an_episode_without_a_party():
+    with pytest.raises(AssertionError, match="needs a party"):
+        CenterHeal(weight=5.0).reset(frame(levels=()))
+
+
+heal_frames = st.builds(
+    lambda center, hp, respawn, last_map: frame(tile=(center, 0, 0), hp=(hp,), respawn=respawn, last_map=last_map),
+    center=st.sampled_from([PEWTER_POKECENTER, CERULEAN_POKECENTER, ROUTE_3]),
+    hp=st.sampled_from([0.0, 0.5, 1.0]),
+    respawn=st.sampled_from([PALLET_TOWN, PEWTER_CITY, CERULEAN_CITY]),
+    last_map=st.sampled_from([PEWTER_CITY, CERULEAN_CITY]),
+)
+
+
+@given(st.lists(heal_frames, min_size=1, max_size=40))
+def test_heal_pays_at_most_once_per_respawn_point(trajectory):
+    term = CenterHeal(weight=1.0)
+    term.reset(trajectory[0])
+    total = sum(term(item) for item in trajectory)
+    assert total <= len({item.respawn_map for item in trajectory} - {trajectory[0].respawn_map})
+
+
+# --- MoveGain: each party place pays for raising its best total move strength ---
+# Squirtle's moves, as in pret data/moves/moves.asm: id, effect, power, type, accuracy out of 255, PP.
+TACKLE, TAIL_WHIP, BUBBLE, WATER_GUN, BITE = 33, 39, 145, 55, 44
+SQUIRTLE_MOVES = {
+    TACKLE: Move(TACKLE, 0x00, 35, NORMAL, 242, 35),
+    TAIL_WHIP: Move(TAIL_WHIP, 0x13, 0, NORMAL, 255, 30),
+    BUBBLE: Move(BUBBLE, 0x45, 20, WATER, 255, 30),
+    WATER_GUN: Move(WATER_GUN, 0x00, 40, WATER, 255, 25),
+    BITE: Move(BITE, 0x1F, 60, NORMAL, 255, 25),
+}
+TACKLE_SCORE = 35 * 242 / 255
+SQUIRTLE_AT_15 = (TACKLE, TAIL_WHIP, BUBBLE, WATER_GUN)
+
+
+def _move(effect: int, power: int, accuracy: int = 255) -> dict[int, Move]:
+    return {1: Move(1, effect, power, NORMAL, accuracy, 10)}
+
+
+def test_move_score_is_power_times_accuracy():
+    assert move_scores(SQUIRTLE_MOVES)[TACKLE].score == pytest.approx(TACKLE_SCORE)
+
+
+def test_move_score_keeps_the_move_type_for_stab():
+    assert move_scores(SQUIRTLE_MOVES)[WATER_GUN].type == WATER
+
+
+@pytest.mark.parametrize(
+    ("effect", "power"),
+    [(0x07, 170), (0x26, 1), (0x29, 1), (0x28, 1), (0x00, 1), (0x13, 0)],
+    ids=["self-faint", "one-hit-ko", "fixed-damage", "super-fang", "counter", "status"],
+)
+def test_moves_that_do_not_scale_with_power_score_zero(effect, power):
+    assert move_scores(_move(effect, power))[1].score == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize("effect", [0x27, 0x2B, 0x50], ids=["charge", "fly", "hyper-beam"])
+def test_two_turn_moves_score_half(effect):
+    assert move_scores(_move(effect, 100))[1].score == pytest.approx(50.0)
+
+
+@requires_rom
+def test_the_rom_move_table_scores_bite_at_its_full_power():
+    assert move_scores(RomTables(ROM).moves)[BITE].score == pytest.approx(60.0)
+
+
+@requires_rom
+def test_the_rom_move_table_scores_explosion_zero():
+    explosion = 153  # pret constants/move_constants.asm
+    assert move_scores(RomTables(ROM).moves)[explosion].score == pytest.approx(0.0)
+
+
+def _squirtle(*moves: int, level: int = 22) -> GameFrame:
+    return frame(levels=(level,), moves=moves, types=(WATER, WATER))
+
+
+def _move_term() -> MoveGain:
+    return MoveGain(weight=1.0, scores=move_scores(SQUIRTLE_MOVES))
+
+
+def test_learning_bite_over_tail_whip_pays_its_score():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    assert term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN)) == pytest.approx(60.0)
+
+
+def test_learning_bite_over_tackle_pays_the_difference():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    assert term(_squirtle(BITE, TAIL_WHIP, BUBBLE, WATER_GUN)) == pytest.approx(60.0 - TACKLE_SCORE)
+
+
+def test_a_move_of_the_pokemons_own_type_scores_one_and_a_half_times():
+    term = _move_term()
+    term.reset(_squirtle(TACKLE, TAIL_WHIP, 0, 0))
+    assert term(_squirtle(TACKLE, TAIL_WHIP, WATER_GUN, 0)) == pytest.approx(1.5 * 40)
+
+
+def test_declining_a_move_pays_nothing():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    assert term(_squirtle(*SQUIRTLE_AT_15)) == pytest.approx(0.0)
+
+
+def test_relearning_a_forgotten_move_pays_nothing():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN))
+    term(_squirtle(*SQUIRTLE_AT_15))
+    assert term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN)) == pytest.approx(0.0)
+
+
+def test_a_joining_pokemon_pays_nothing_for_the_moves_it_knows():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    joined = frame(levels=(22, 5), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    assert term(joined) == pytest.approx(0.0)
+
+
+def test_a_joining_pokemon_whose_moves_are_written_after_the_prompt_pays_nothing():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    term(frame(levels=(22, 0), moves=(*SQUIRTLE_AT_15, 0, 0, 0, 0), types=(WATER, WATER, 0, 0)))
+    written = frame(levels=(22, 5), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    assert term(written) == pytest.approx(0.0)
+
+
+def test_withdrawing_a_stored_pokemon_pays_nothing_for_its_moves():
+    term = _move_term()
+    both = frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    term.reset(both)
+    term(_squirtle(*SQUIRTLE_AT_15))
+    assert term(both) == pytest.approx(0.0)
+
+
+def test_party_order_does_not_change_the_move_pay():
+    term = _move_term()
+    term.reset(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
+    swapped = frame(levels=(9, 22), moves=(BITE, 0, 0, 0, *SQUIRTLE_AT_15), types=(NORMAL, NORMAL, WATER, WATER))
+    assert term(swapped) == pytest.approx(0.0)
+
+
+def test_a_second_normal_pokemon_learning_bite_pays_its_score_with_stab():
+    term = _move_term()
+    term.reset(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, TACKLE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
+    assert term(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, TACKLE, BITE, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))) == pytest.approx(1.5 * 60.0)
+
+
+def test_a_move_gets_stab_only_from_its_own_users_types():
+    term = _move_term()
+    term.reset(frame(levels=(9, 9), moves=(0, 0, 0, 0, 0, 0, 0, 0), types=(NORMAL, NORMAL, WATER, WATER)))
+    assert term(frame(levels=(9, 9), moves=(WATER_GUN, 0, 0, 0, 0, 0, 0, 0), types=(NORMAL, NORMAL, WATER, WATER))) == pytest.approx(40.0)
+
+
+def test_storing_the_weaker_pokemon_pays_nothing():
+    term = _move_term()
+    term.reset(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, TACKLE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
+    assert term(_squirtle(*SQUIRTLE_AT_15)) == pytest.approx(0.0)
+
+
+def test_an_episode_starting_mid_write_tolerates_unwritten_move_bytes():
+    term = _move_term()
+    term.reset(frame(levels=(22, 0), moves=(*SQUIRTLE_AT_15, 200, 0, 0, 0), types=(WATER, WATER, 0, 0)))
+    assert term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN, level=22)) == pytest.approx(0.0)
+
+
+def test_move_gain_rejects_an_empty_move_table():
+    with pytest.raises(AssertionError, match="needs the move table"):
+        MoveGain(weight=1.0, scores={})
+
+
+def test_move_gain_accepts_a_one_move_table():
+    term = MoveGain(weight=1.0, scores=move_scores({BITE: SQUIRTLE_MOVES[BITE]}))
+    term.reset(_squirtle(0, 0, 0, 0))
+    assert term(_squirtle(BITE, 0, 0, 0)) == pytest.approx(60.0)
+
+
+def test_a_move_missing_from_the_table_is_a_bug():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    with pytest.raises(AssertionError, match="move 200 is not in the move table"):
+        term(_squirtle(TACKLE, TAIL_WHIP, BUBBLE, 200))
+
+
+def test_move_gain_rejects_a_frame_without_four_moves_per_pokemon():
+    term = _move_term()
+    with pytest.raises(AssertionError, match="4 moves per Pokemon"):
+        term.reset(frame(levels=(22,), moves=(TACKLE,)))
+
+
+move_lists = st.lists(st.sampled_from([0, *SQUIRTLE_MOVES]), min_size=4, max_size=4)
+
+
+@given(st.lists(st.lists(move_lists, min_size=1, max_size=6), min_size=1, max_size=30))
+def test_lifetime_move_pay_never_exceeds_six_places_of_four_best_moves(trajectory):
+    term = _move_term()
+    term.reset(_squirtle(0, 0, 0, 0))
+    party = [frame(levels=(9,) * len(mons), moves=tuple(m for mon in mons for m in mon)) for mons in trajectory]
+    total = sum(term(item) for item in party)
+    assert total <= 6 * 4 * 1.5 * 60
+
+
 # --- EpisodeReward and the anti-farming properties -----------------------
 
 
 def _episode() -> EpisodeReward:
-    return EpisodeReward([NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5), NewSpecies(weight=1.0)])
+    return EpisodeReward(
+        [
+            NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5),
+            NewSpecies(weight=1.0), CenterHeal(weight=5.0), MoveGain(weight=0.01, scores=move_scores(SQUIRTLE_MOVES)),
+        ]
+    )  # fmt: skip
 
 
 def test_episode_reward_reports_each_term_by_name():
     episode = _episode()
     episode.reset(frame())
-    assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx({"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0})
+    assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx(
+        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0}
+    )
 
 
 def test_episode_reward_requires_reset_before_step():
@@ -415,8 +729,13 @@ def _play(episode: EpisodeReward, trajectory: list[GameFrame]) -> float:
 
 
 def _generated_frame(**fields) -> GameFrame:
+    """Full HP always: a heal pays the first time HP is restored, which a replay can create (see CenterHeal tests)."""
     levels = fields.pop("party_levels")
-    return GameFrame(party_levels=levels, party_hp=tuple(1.0 for _ in levels), **fields)
+    moves = fields.pop("moves")
+    return GameFrame(
+        party_levels=levels, party_hp=tuple(1.0 for _ in levels), party_moves=tuple(moves[: 4 * len(levels)]),
+        party_types=(WATER, WATER) * len(levels), **fields,
+    )  # fmt: skip
 
 
 frames = st.builds(
@@ -429,6 +748,9 @@ frames = st.builds(
     badges=st.integers(0, 255),
     party_levels=st.lists(st.integers(1, 100), min_size=1, max_size=6).map(tuple),
     pokedex_owned=st.lists(st.integers(1, 151), max_size=4).map(lambda numbers: owned_with(*numbers)),
+    moves=st.lists(st.sampled_from([0, *SQUIRTLE_MOVES]), min_size=24, max_size=24),
+    respawn_map=st.integers(0, 3),
+    last_map=st.integers(0, 3),
 )
 
 

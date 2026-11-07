@@ -28,6 +28,9 @@ class GameFrame:
     party_moves: tuple[int, ...] = ()
     bag_items: tuple[int, ...] = ()
     pokedex_owned: bytes = NO_SPECIES_OWNED  # one bit per dex number, lowest first
+    party_types: tuple[int, ...] = ()  # two per Pokemon, in party order; the same type twice for a single type
+    respawn_map: int = 0  # where a blackout returns the player (Pallet Town until a nurse heals)
+    last_map: int = 0  # the outdoor map the player last left
 
     def __post_init__(self) -> None:
         require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
@@ -35,6 +38,8 @@ class GameFrame:
         require(len(self.party_levels) == len(self.party_hp), "party levels and hp must have one entry per Pokemon")
         require(all(0.0 <= hp <= 1.0 for hp in self.party_hp), f"hp fractions out of range: {self.party_hp}")
         require(0 <= self.badges <= 0xFF, f"badges must fit one byte, got {self.badges}")
+        types = ram_map.TYPES_PER_MON * len(self.party_levels)
+        require(len(self.party_types) in (0, types), f"expected {ram_map.TYPES_PER_MON} types per Pokemon, got {self.party_types}")
 
 
 def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP001 clamped by construction; GameFrame checks the range
@@ -64,4 +69,7 @@ def read_frame(mem: ram_map.Memory) -> GameFrame:
         party_moves=tuple(mem[address + ram_map.OFF_MOVES + i] for address in party for i in range(ram_map.MOVES_PER_MON)),
         bag_items=tuple(item for item, _ in ram_map.read_bag(mem)),
         pokedex_owned=bytes(mem[ram_map.POKEDEX_OWNED + i] for i in range(ram_map.POKEDEX_BYTES)),
+        party_types=tuple(mem[address + ram_map.OFF_TYPES + i] for address in party for i in range(ram_map.TYPES_PER_MON)),
+        respawn_map=mem[ram_map.RESPAWN_MAP],
+        last_map=mem[ram_map.LAST_MAP],
     )

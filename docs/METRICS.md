@@ -23,7 +23,7 @@ episode numbers were dropped because about four episodes finish per update, too 
 | Is the network running out of room? | `net/feature_rank`, `net/dead_fraction`, `net/feature_norm`, `ppo/weight_norm` |
 | Is the hardware keeping up? | `perf/steps_per_second`, `perf/update_seconds` |
 
-A stall is `stall_steps` (10,240) with no progress: no new event, badge, level or species. New tiles don't end one, because an agent can wander and keep collecting them. A stall ends the episode as terminated (worth nothing after it), and the share of the limit used is in the observation. So an episode has at most one stall, and its snapshot is the moment it ended; every episode also keeps one at its end.
+A stall is `stall_steps` (10,240) with no progress: no reward except new tiles (event, badge, level, species, heal or move gain). New tiles don't end one, because an agent can wander and keep collecting them. A stall ends the episode as terminated (worth nothing after it), and the share of the limit used is in the observation. So an episode has at most one stall, and its snapshot is the moment it ended; every episode also keeps one at its end.
 
 ## Removed from the first run's log
 

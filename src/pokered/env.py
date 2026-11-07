@@ -16,12 +16,23 @@ from pokered.frame import GameFrame, read_frame
 from pokered.milestones import MilestoneTracker
 from pokered.negative_space import require
 from pokered.observations import OBSERVATION_SHAPES, FrameStack, VisitedMap, downscale_screen, party_and_badges
-from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, LevelGain, NewSpecies, NewTile
+from pokered.ram_map import RomTables
+from pokered.rewards import (
+    BadgeGain,
+    CenterHeal,
+    EpisodeReward,
+    EventFlagGain,
+    LevelGain,
+    MoveGain,
+    NewSpecies,
+    NewTile,
+    move_scores,
+)
 from pokered.telemetry import EpisodeDetail, EpisodeReport, EpisodeTelemetry, Snapshot
 
 
 class PokemonRedEnv(gym.Env):
-    """An episode ends in one of two ways. ``stall_steps`` with no progress (event, badge, level or species) is
+    """An episode ends in one of two ways. ``stall_steps`` with no progress (any reward but exploration) is
     terminated: the world ends there, so stalling is worth nothing. Running out of budget is truncated, so the value
     target bootstraps. When both happen on one step it is terminated."""
 
@@ -37,7 +48,15 @@ class PokemonRedEnv(gym.Env):
         self._tiles = NewTile(config.tile_weight)
         self._events = EventFlagGain(config.event_weight)
         self._reward = EpisodeReward(
-            [self._tiles, self._events, BadgeGain(config.badge_weight), LevelGain(config.level_weight), NewSpecies(config.species_weight)]
+            [
+                self._tiles,
+                self._events,
+                BadgeGain(config.badge_weight),
+                LevelGain(config.level_weight),
+                NewSpecies(config.species_weight),
+                CenterHeal(config.heal_weight),
+                MoveGain(config.move_weight, move_scores(RomTables(config.rom).moves)),
+            ]
         )
         self._milestones = MilestoneTracker()
         self._telemetry = EpisodeTelemetry(config.stall_steps)

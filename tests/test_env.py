@@ -54,6 +54,13 @@ def test_step_reports_reward_terms_that_sum_to_reward(make_env):
     assert reward == pytest.approx(sum(info["reward_terms"].values()))
 
 
+def test_step_reports_the_heal_and_move_terms(make_env):
+    env = make_env()
+    env.reset(seed=0)
+    _, _, _, _, info = env.step(BUTTONS.index("down"))
+    assert {"heal", "moves"} <= info["reward_terms"].keys()
+
+
 def test_walking_to_a_new_tile_pays_exploration(make_env):
     env = make_env(tile_weight=0.25)
     env.reset(seed=0)

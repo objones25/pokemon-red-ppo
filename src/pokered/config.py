@@ -22,10 +22,12 @@ class EnvConfig:
     badge_weight: float = 5.0
     level_weight: float = 0.5
     species_weight: float = 1.0
+    heal_weight: float = 5.0
+    move_weight: float = 0.01
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True
-    stall_steps: int = 10_240  # Steps with no event, badge, level or species before the episode ends (terminated).
+    stall_steps: int = 10_240  # Steps with no reward but exploration before the episode ends (terminated).
 
 
 @dataclass(frozen=True, slots=True)
