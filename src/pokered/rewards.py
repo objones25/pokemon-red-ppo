@@ -19,10 +19,13 @@ from pokered.negative_space import check_finite, require
 # (byte offset into the event flags, bit) of EVENT_BOUGHT_MUSEUM_TICKET: buying it is optional, not progress.
 MUSEUM_TICKET: Final[tuple[int, int]] = (0xD754 - ram_map.EVENT_FLAGS_START, 0)
 
-# Highest level on the next gym leader's team, indexed by badges held; the last entry is Lance's ace. No Pokemon earns
-# reward past this until the next badge. Source: pret/pokered data/trainers/parties.asm (Brock's Onix 14, ...,
-# Giovanni's Rhydon 50, Lance's Dragonite 62).
+# Highest level on the next gym leader's team, indexed by badges held; the last entry is Lance's ace. Source:
+# pret/pokered data/trainers/parties.asm (Brock's Onix 14, ..., Giovanni's Rhydon 50, Lance's Dragonite 62).
 GYM_ACE_LEVEL_BY_BADGES: Final[tuple[int, ...]] = (14, 21, 24, 29, 43, 43, 47, 50, 62)
+# No Pokemon earns reward past the next ace plus this margin until the next badge. run2 and run3, capped at the ace,
+# beat Misty in 8% and 0% of episodes with a starter near 24; the first run's looser cap reached about 28 and 59-78%.
+LEVEL_MARGIN_OVER_ACE: Final[int] = 5
+LEVEL_CAP_BY_BADGES: Final[tuple[int, ...]] = tuple(ace + LEVEL_MARGIN_OVER_ACE for ace in GYM_ACE_LEVEL_BY_BADGES)
 SPECIES_COUNT: Final[int] = 151
 
 
@@ -113,11 +116,11 @@ class BadgeGain:
 
 @dataclass(slots=True)
 class LevelGain:
-    """Pays per level gained up to the next gym's ace, for each of the six party places.
+    """Pays per level gained up to the next gym's ace plus a margin, for each of the six party places.
 
     Places rank the party by level, highest first, and each keeps the highest level it has ever held. That is what
     stops the term being farmed: storing a Pokemon costs nothing, while withdrawing it or levelling a replacement to
-    the same level pays nothing, so the lifetime total is at most six times the last ace. No identity is tracked.
+    the same level pays nothing, so the lifetime total is at most six times the last cap. No identity is tracked.
     A Pokemon pays nothing for the level it joins at, so a bought or caught one pays only for levels it then gains.
     The game raises the party count, shows the nickname prompt, and only then writes the level (pret
     engine/pokemon/add_mon.asm), so a joining Pokemon reads level 0 for some steps. A step joins when the party grows,
@@ -145,7 +148,7 @@ class LevelGain:
 
     def __call__(self, frame: GameFrame) -> float:
         self._most_badges = max(self._most_badges, frame.badges.bit_count())
-        ace = GYM_ACE_LEVEL_BY_BADGES[self._most_badges]
+        cap = LEVEL_CAP_BY_BADGES[self._most_badges]
         unwritten = 0 in frame.party_levels
         joined = len(frame.party_levels) > self._party_size or unwritten or self._was_unwritten
         self._party_size = len(frame.party_levels)
@@ -153,7 +156,7 @@ class LevelGain:
         gained = 0
         for place, level in enumerate(_ranked_levels(frame.party_levels)):
             self._best[place] = max(self._best[place], level)
-            earned = min(self._best[place], ace)
+            earned = min(self._best[place], cap)
             if earned > self._credited[place]:
                 gained += 0 if joined else earned - self._credited[place]
                 self._credited[place] = earned

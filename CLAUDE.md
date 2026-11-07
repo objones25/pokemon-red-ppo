@@ -123,7 +123,7 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 | `NewTile` | Once per `(map, x, y)`, outside battle | Tiles in the game |
 | `EventFlagGain` | Once per flag, even if the game clears and re-sets it; flags already set at reset and the museum ticket pay nothing | About 491 of the 2,560 bits can be set and pay |
 | `BadgeGain` | Once per badge | 8 |
-| `LevelGain` | Per level gained, for each of 6 party places ranked by level, up to the next gym leader's ace (`GYM_ACE_LEVEL_BY_BADGES`). Each place keeps its highest level, so storing costs nothing and swapping earns nothing. A Pokemon pays nothing for the level it joins at (a bought level-5 Magikarp paid 5 levels in run2), only for levels it gains after. | 6 x 62 levels |
+| `LevelGain` | Per level gained, for each of 6 party places ranked by level, up to 5 levels over the next gym leader's ace (`LEVEL_CAP_BY_BADGES`: 19 before Brock, 26 before Misty). Each place keeps its highest level, so storing costs nothing and swapping earns nothing. A Pokemon pays nothing for the level it joins at (a bought level-5 Magikarp paid 5 levels in run2), only for levels it gains after. | 6 x 67 levels |
 | `NewSpecies` | Once per species owned (Pokedex owned bits); species owned at reset pay nothing, so a second of the same species pays nothing | 151 |
 
 - Terms return this step's reward directly. Paying the change in a running total is what made upstream's stuck penalty
