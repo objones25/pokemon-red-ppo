@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Final, Protocol
+from typing import ClassVar, Final, Protocol
 
 from pokered import ram_map
 from pokered.frame import GameFrame
@@ -35,6 +35,7 @@ def _require_weight(weight: float) -> None:
 
 class RewardTerm(Protocol):
     name: str
+    signed: ClassVar[bool]  # only a signed term may pay a negative reward
 
     def reset(self, first: GameFrame) -> None: ...
     def __call__(self, frame: GameFrame) -> float: ...
@@ -46,6 +47,7 @@ class NewTile:
 
     weight: float
     name: str = "explore"
+    signed: ClassVar[bool] = False
     _seen: set[tuple[int, int, int]] = field(default_factory=set, repr=False)
 
     def __post_init__(self) -> None:
@@ -76,6 +78,7 @@ class EventFlagGain:
 
     weight: float
     name: str = "event"
+    signed: ClassVar[bool] = False
     gained: int = 0
     _seen: int = 0
 
@@ -100,6 +103,7 @@ class BadgeGain:
 
     weight: float
     name: str = "badge"
+    signed: ClassVar[bool] = False
     _seen: int = 0
 
     def __post_init__(self) -> None:
@@ -154,6 +158,7 @@ class LevelGain:
 
     weight: float
     name: str = "level"
+    signed: ClassVar[bool] = False
     _best: list[int] = field(default_factory=list, repr=False)
     _credited: list[int] = field(default_factory=list, repr=False)
     _most_badges: int = 0
@@ -200,6 +205,7 @@ class NewSpecies:
 
     weight: float
     name: str = "species"
+    signed: ClassVar[bool] = False
     _seen: int = 0
 
     def __post_init__(self) -> None:
@@ -234,6 +240,7 @@ class CenterHeal:
 
     weight: float
     name: str = "heal"
+    signed: ClassVar[bool] = False
     _paid: set[int] = field(default_factory=set, repr=False)
     _hurt: bool = False
 
@@ -270,8 +277,13 @@ SPECIAL_DAMAGE_EFFECT: Final[int] = 0x29
 NO_SCORE_EFFECTS: Final[frozenset[int]] = frozenset(
     {EXPLODE_EFFECT, OHKO_EFFECT, SUPER_FANG_EFFECT, SPECIAL_DAMAGE_EFFECT}
 )
-# Moves that take two turns to land one hit: charge first (Solar Beam, Dig), fly, or recharge after (Hyper Beam).
-TWO_TURN_EFFECTS: Final[frozenset[int]] = frozenset({0x27, 0x2B, 0x50})
+# Moves that take two turns to land one hit and can be hit in between: charge first (Solar Beam, Skull Bash) or recharge
+# after (Hyper Beam, whose skipped recharge on a knockout the agent is not expected to use). Fly and Dig leave the user
+# out of reach on the first turn, so they score in full; Dig shares the charge effect and the engine checks its id.
+CHARGE_EFFECT: Final[int] = 0x27
+HYPER_BEAM_EFFECT: Final[int] = 0x50
+TWO_TURN_EFFECTS: Final[frozenset[int]] = frozenset({CHARGE_EFFECT, HYPER_BEAM_EFFECT})
+DIG: Final[int] = 91  # pret constants/move_constants.asm
 STAB: Final[float] = 1.5
 
 
@@ -282,7 +294,7 @@ class MoveScore:
 
 
 def move_scores(moves: Mapping[int, ram_map.Move]) -> dict[int, MoveScore]:
-    """Expected damage per turn before type matchups: power times accuracy, halved for two-turn moves.
+    """Expected damage per turn before type matchups: power times accuracy, halved for moves that charge or recharge.
 
     Power 1 marks damage the game computes another way (Counter, Seismic Toss, Dragon Rage, one-hit KOs), and status
     moves have power 0: all of these score nothing, as do moves that make the user faint.
@@ -291,63 +303,96 @@ def move_scores(moves: Mapping[int, ram_map.Move]) -> dict[int, MoveScore]:
     for move_id, move in moves.items():
         scaled = move.power > 1 and move.effect not in NO_SCORE_EFFECTS
         score = move.power * move.accuracy / 255 if scaled else 0.0
-        scores[move_id] = MoveScore(move.type, score / 2 if move.effect in TWO_TURN_EFFECTS else score)
+        halved = move.effect in TWO_TURN_EFFECTS and move_id != DIG
+        scores[move_id] = MoveScore(move.type, score / 2 if halved else score)
         require(0.0 <= scores[move_id].score <= 255.0, f"move {move_id} scored {scores[move_id].score}")
     return scores
 
 
 @dataclass(slots=True)
 class MoveGain:
-    """Pays for raising a party place's best total move score, ranked and latched like ``LevelGain``.
+    """Pays the change in the party's total move score, so learning a stronger move pays and losing one costs.
 
-    A Pokemon's total is the sum of its four moves' scores, times 1.5 for a move of its own type. Places rank the party
-    by total and each keeps its best, so forgetting and relearning, storing and withdrawing, or reordering pay nothing,
-    and a joining Pokemon is credited without pay. The lifetime total is at most six places of four best moves.
+    A Pokemon's total is the sum of its four moves' scores, times 1.5 for a move of its own type, and the party's is
+    the sum over members. Each step pays the members it shares with the step before: their totals now minus the whole
+    party's total then. So storing a Pokemon costs its total and reordering pays nothing. A joining Pokemon (a new slot,
+    or one whose level read 0 now or on the step before, while the game writes it: pret engine/pokemon/add_mon.asm) is
+    credited without pay. Payments add up to the final total minus the first, minus those credits, which are never
+    negative, so no sequence of frames pays more for being repeated, and the lifetime total is at most six Pokemon of
+    four best moves.
     """
 
     weight: float
     scores: Mapping[int, MoveScore]
     name: str = "moves"
-    _best: list[float] = field(default_factory=list, repr=False)
-    _join: _PartyJoin = field(default_factory=_PartyJoin, repr=False)
+    signed: ClassVar[bool] = True
+    _totals: list[float | None] = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         _require_weight(self.weight)
         require(len(self.scores) > 0, "MoveGain needs the move table")
 
     def reset(self, first: GameFrame) -> None:
-        self._best = self._ranked_totals(first, joined=True)
-        self._join.reset(first)
-        require(len(self._best) == ram_map.MAX_PARTY, f"expected {ram_map.MAX_PARTY} places, got {len(self._best)}")
+        self._totals = self._member_totals(first, established=[False] * len(first.party_levels))
+        require(len(self._totals) <= ram_map.MAX_PARTY, f"a party holds at most {ram_map.MAX_PARTY}, got {len(self._totals)}")
 
     def __call__(self, frame: GameFrame) -> float:
-        joined = self._join(frame)
-        gained = 0.0
-        for place, total in enumerate(self._ranked_totals(frame, joined=joined)):
-            if total > self._best[place]:
-                gained += 0.0 if joined else total - self._best[place]
-                self._best[place] = total
-        require(gained >= 0.0, f"a move gain cannot be negative, got {gained}")
-        return self.weight * gained
+        before = self._totals
+        established = [slot < len(before) and before[slot] is not None for slot in range(len(frame.party_levels))]
+        now = self._member_totals(frame, established=established)
+        kept = sum(total for total, old in zip(now, established, strict=True) if total is not None and old)
+        change = kept - sum(total for total in before if total is not None)
+        credited = sum(total for total, old in zip(now, established, strict=True) if total is not None and not old)
+        require(credited >= 0.0, f"a joining Pokemon's credit cannot be negative, got {credited}")
+        self._totals = now
+        return self.weight * change
 
-    def _ranked_totals(self, frame: GameFrame, *, joined: bool) -> list[float]:
-        """Totals highest first, with zeros for empty places. A joining slot may hold unwritten bytes, so unknown
-        moves count as nothing then; at any other time an unknown move is a misread."""
+    def _member_totals(self, frame: GameFrame, *, established: list[bool]) -> list[float | None]:
+        """Each slot's total, or None for a slot whose level reads 0. Only an established member must know its moves:
+        a joining slot may hold unwritten bytes, which count as nothing."""
         size = len(frame.party_levels)
         moves_per_mon = ram_map.MOVES_PER_MON
         require(len(frame.party_moves) == moves_per_mon * size, f"expected {moves_per_mon} moves per Pokemon, got {frame.party_moves}")
         require(len(frame.party_types) == ram_map.TYPES_PER_MON * size, f"expected 2 types per Pokemon, got {frame.party_types}")
-        totals = []
+        totals: list[float | None] = []
         for mon in range(size):
+            if frame.party_levels[mon] == 0:
+                totals.append(None)
+                continue
             types = frame.party_types[ram_map.TYPES_PER_MON * mon : ram_map.TYPES_PER_MON * (mon + 1)]
             total = 0.0
             for move_id in frame.party_moves[moves_per_mon * mon : moves_per_mon * (mon + 1)]:
                 move = self.scores.get(move_id)
-                require(move_id == 0 or move is not None or joined, f"move {move_id} is not in the move table")
+                require(move_id == 0 or move is not None or not established[mon], f"move {move_id} is not in the move table")
                 if move is not None:
                     total += move.score * (STAB if move.type in types else 1.0)
             totals.append(total)
-        return sorted(totals, reverse=True) + [0.0] * (ram_map.MAX_PARTY - size)
+        return totals
+
+
+@dataclass(slots=True)
+class HiddenEventGain:
+    """Pays once per hidden event the game matches: a PC, sign, poster or trash can pressed with A (pret
+    data/events/hidden_events.asm lists 212). Bill's Cell Separator and Lt. Surge's trash-can switches are hidden
+    events. A match at reset, from before the episode, pays nothing."""
+
+    weight: float
+    name: str = "hidden"
+    signed: ClassVar[bool] = False
+    _seen: set[tuple[int, int]] = field(default_factory=set, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._seen = set(first.hidden_events)
+        require(len(self._seen) <= len(first.hidden_events), "reset cannot see more events than the frame holds")
+
+    def __call__(self, frame: GameFrame) -> float:
+        new = set(frame.hidden_events) - self._seen
+        self._seen |= new
+        require(new <= self._seen, "every hidden event paid must be remembered")
+        return self.weight * len(new)
 
 
 class EpisodeReward:
@@ -367,8 +412,10 @@ class EpisodeReward:
     def step(self, frame: GameFrame) -> dict[str, float]:
         if not self._started:
             raise RuntimeError("EpisodeReward.step called before reset")
-        rewards = {term.name: term(frame) for term in self._terms}
-        for name, value in rewards.items():
-            check_finite(value, name)
-            require(value >= 0.0, f"reward term {name} paid {value}: terms must never go negative")
+        rewards = {}
+        for term in self._terms:
+            value = term(frame)
+            check_finite(value, term.name)
+            require(value >= 0.0 or term.signed, f"reward term {term.name} paid {value}: only a signed term may go negative")
+            rewards[term.name] = value
         return rewards

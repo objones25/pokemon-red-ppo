@@ -36,6 +36,12 @@ BADGES = 0xD356
 PLAYER_ID = 0xD359  # 2 bytes
 MAP_ID = 0xD35E
 LAST_MAP = 0xD365  # wLastMap: the outdoor map the player last left, which the nurse records as the respawn point
+# CheckForHiddenEvent.foundMatchingEvent (pret engine/overworld/hidden_events.asm): executed only when the tile in front
+# of the player matches a hidden event on this map, with the event's index in the map's list in wHiddenEventIndex.
+# The ROM bytes there are 2A EA 3D CD (ld a, [hli]; ld [wHiddenEventFunctionArgument], a).
+HIDDEN_EVENT_MATCH_BANK = 0x11
+HIDDEN_EVENT_MATCH_ADDRESS = 0x69F0
+HIDDEN_EVENT_INDEX = 0xCD3F  # wHiddenEventIndex
 RESPAWN_MAP = 0xD719  # wLastBlackoutMap: where a blackout returns the player; set only by an accepted nurse heal
 # Every map with a healing nurse (pret constants/map_constants.asm): the nine city centers, Mt. Moon's, Rock Tunnel's,
 # and the Indigo Plateau lobby.

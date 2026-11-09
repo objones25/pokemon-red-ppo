@@ -15,7 +15,7 @@ episode numbers were dropped because about four episodes finish per update, too 
 | What did the game look like at that point? | `stuck/screens` in W&B; `stuck/<step>_<i>_stall_map<id>.png` and `.state` on the volume (the state reloads in PyBoy) |
 | Who does it lose to? | `tables/fights`: per trainer, or per map for wild fights: fights and losses per episode, loss rate, mean party max level; `progress/lost_fights_mean`, `progress/blackouts_mean` |
 | How strong is the party? | `progress/max_level_mean`, `progress/party_size_mean`, and `mean_party_max_level` per fight |
-| Which rewards drive it, and when? | `reward/<term>` per episode; `tables/reward_phases`: per term, per 10,240 steps of episode |
+| Which rewards drive it, and when? | `reward/<term>` per episode; `tables/reward_phases`: per term, per 10,240 steps of episode. `reward/moves` is the net of gains and costs, so it can be negative |
 | What does it press? | `actions/<button>`: share of presses |
 | Has exploration collapsed? | `ppo/entropy_overworld`, `ppo/entropy_battle`; `entropy` per map in `tables/maps` |
 | Did an update go wrong? | `ppo/approx_kl_max`, `ppo/approx_kl`, `ppo/clip_fraction`, `ppo/update_ratio`, `ppo/grad_norm` |

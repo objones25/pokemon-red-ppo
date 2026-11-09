@@ -25,6 +25,31 @@ def open_emulator(rom: Path, *, fast_mode: bool = False) -> PyBoy:
     return pyboy
 
 
+class HiddenEventWatch:
+    """Records each hidden event (a PC, sign or poster with no sprite) the game matches when the player presses A.
+
+    The hidden-event RAM is shared with other variables (pret ram/wram.asm, ram/hram.asm), so polling it can't tell a
+    match from leftover bytes. A hook on the match itself can. The hook survives ``load_state``.
+    """
+
+    def __init__(self, pyboy: PyBoy) -> None:
+        self._pyboy = pyboy
+        self._found: list[tuple[int, int]] = []
+        pyboy.hook_register(ram_map.HIDDEN_EVENT_MATCH_BANK, ram_map.HIDDEN_EVENT_MATCH_ADDRESS, self._record, None)
+
+    def _record(self, _context: object) -> None:  # nsp: ignore NSP001 GameFrame validates each (map, index)
+        memory = self._pyboy.memory
+        self._found.append((memory[ram_map.MAP_ID], memory[ram_map.HIDDEN_EVENT_INDEX]))
+
+    def drain(self) -> tuple[tuple[int, int], ...]:
+        """The matches since the last drain, oldest first. The A button is held 8 frames, so one press can match more
+        than once; the reward pays each event once anyway."""
+        found = tuple(self._found)
+        self._found.clear()
+        require(not self._found, "draining must empty the watch")
+        return found
+
+
 def restore(pyboy: PyBoy, state: bytes, *, battle_animations: bool) -> None:
     """Load a current-format save, apply the battle-animation option, and settle the screen."""
     require(state, "start state must not be empty")
