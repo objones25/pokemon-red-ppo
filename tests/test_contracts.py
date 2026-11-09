@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
 import pytest
 import torch
@@ -15,7 +17,7 @@ from pokered.model import ActorCritic
 from pokered.negative_space import CheckFailed
 from pokered.observations import OBSERVATION_SHAPES, FrameStack, downscale_screen
 from pokered.ppo import Rollout, collect_rollout, compute_gae, make_optimizer, ppo_update
-from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, LevelGain, NewTile
+from pokered.rewards import BadgeGain, EpisodeReward, EventFlagGain, HiddenEventGain, LevelGain, NewTile
 from pokered.vec import StepResult, VecEnv
 
 
@@ -41,7 +43,7 @@ def test_frame_refuses_impossible_values(overrides, message):
         _frame(**overrides)
 
 
-@pytest.mark.parametrize("term", [NewTile, EventFlagGain, BadgeGain, LevelGain])
+@pytest.mark.parametrize("term", [NewTile, EventFlagGain, BadgeGain, LevelGain, HiddenEventGain])
 def test_reward_term_refuses_negative_weight(term):
     with pytest.raises(CheckFailed, match="weight"):
         term(weight=-1.0)
@@ -49,6 +51,7 @@ def test_reward_term_refuses_negative_weight(term):
 
 class _Penalty:
     name = "penalty"
+    signed: ClassVar[bool] = False
 
     def reset(self, first) -> None:
         pass

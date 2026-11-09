@@ -54,11 +54,20 @@ def test_step_reports_reward_terms_that_sum_to_reward(make_env):
     assert reward == pytest.approx(sum(info["reward_terms"].values()))
 
 
-def test_step_reports_the_heal_and_move_terms(make_env):
+def test_step_reports_the_heal_move_and_hidden_event_terms(make_env):
     env = make_env()
     env.reset(seed=0)
     _, _, _, _, info = env.step(BUTTONS.index("down"))
-    assert {"heal", "moves"} <= info["reward_terms"].keys()
+    assert {"heal", "moves", "hidden"} <= info["reward_terms"].keys()
+
+
+@pytest.mark.parametrize("fast_mode", [False, True], ids=["accurate", "fast"])
+def test_reading_oaks_email_pays_the_hidden_event_once(make_env, fast_mode):
+    env = make_env(hidden_weight=0.5, fast_mode=fast_mode)
+    env.reset(seed=0)
+    buttons = ("left",) * 4 + ("up",) * 3 + ("a",) * 6  # to (1, 2) facing the email at (1, 1), then read it repeatedly
+    paid = [env.step(BUTTONS.index(button))[4]["reward_terms"]["hidden"] for button in buttons]
+    assert sum(paid) == pytest.approx(0.5)
 
 
 def test_walking_to_a_new_tile_pays_exploration(make_env):
@@ -140,7 +149,7 @@ def test_visited_map_ignores_position_during_battle(make_env, monkeypatch):
     env = make_env()
     obs, _ = env.reset(seed=0)
     start = read_frame(env.pyboy.memory)
-    monkeypatch.setattr("pokered.env.read_frame", lambda _mem: replace(start, in_battle=True, x=start.x + 1))
+    monkeypatch.setattr("pokered.env.read_frame", lambda _mem, **_found: replace(start, in_battle=True, x=start.x + 1))
     obs, *_ = env.step(BUTTONS.index("b"))
     assert obs["visited"][0, 24, 24] == 0
 
@@ -149,7 +158,7 @@ def test_visited_map_marks_position_outside_battle(make_env, monkeypatch):
     env = make_env()
     env.reset(seed=0)
     start = read_frame(env.pyboy.memory)
-    monkeypatch.setattr("pokered.env.read_frame", lambda _mem: replace(start, x=start.x + 1))
+    monkeypatch.setattr("pokered.env.read_frame", lambda _mem, **_found: replace(start, x=start.x + 1))
     obs, *_ = env.step(BUTTONS.index("b"))
     assert obs["visited"][0, 24, 24] == 255
 

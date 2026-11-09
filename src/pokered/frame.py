@@ -31,6 +31,7 @@ class GameFrame:
     party_types: tuple[int, ...] = ()  # two per Pokemon, in party order; the same type twice for a single type
     respawn_map: int = 0  # where a blackout returns the player (Pallet Town until a nurse heals)
     last_map: int = 0  # the outdoor map the player last left
+    hidden_events: tuple[tuple[int, int], ...] = ()  # (map, index) of each hidden event the game matched since the last frame
 
     def __post_init__(self) -> None:
         require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
@@ -40,6 +41,10 @@ class GameFrame:
         require(0 <= self.badges <= 0xFF, f"badges must fit one byte, got {self.badges}")
         types = ram_map.TYPES_PER_MON * len(self.party_levels)
         require(len(self.party_types) in (0, types), f"expected {ram_map.TYPES_PER_MON} types per Pokemon, got {self.party_types}")
+        require(
+            all(0 <= map_id <= 0xFF and 0 <= index <= 0xFF for map_id, index in self.hidden_events),
+            f"a hidden event is a (map, index) pair of bytes, got {self.hidden_events}",
+        )
 
 
 def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP001 clamped by construction; GameFrame checks the range
@@ -49,7 +54,7 @@ def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP
     return min(ram_map.read_u16(mem, address + ram_map.OFF_HP) / maximum, 1.0)
 
 
-def read_frame(mem: ram_map.Memory) -> GameFrame:
+def read_frame(mem: ram_map.Memory, *, hidden_events: tuple[tuple[int, int], ...] = ()) -> GameFrame:
     count = mem[ram_map.PARTY_COUNT]
     if count > ram_map.MAX_PARTY:
         raise ValueError(f"party count {count} exceeds {ram_map.MAX_PARTY}")
@@ -72,4 +77,5 @@ def read_frame(mem: ram_map.Memory) -> GameFrame:
         party_types=tuple(mem[address + ram_map.OFF_TYPES + i] for address in party for i in range(ram_map.TYPES_PER_MON)),
         respawn_map=mem[ram_map.RESPAWN_MAP],
         last_map=mem[ram_map.LAST_MAP],
+        hidden_events=hidden_events,
     )

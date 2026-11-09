@@ -131,6 +131,11 @@ def test_reward_by_term_is_per_episode():
     assert report.scalars["reward/event"] == pytest.approx(3.0)
 
 
+def test_reward_by_term_reports_a_net_move_cost():
+    report = build_report([episode(phases={("moves", 0): -0.4}), episode()])
+    assert report.scalars["reward/moves"] == pytest.approx(-0.2)
+
+
 def test_reward_phase_table_is_per_episode():
     report = build_report([episode(phases={("event", 1): 4.0}), episode()])
     assert report.tables["reward_phases"][1] == [("event", 10_240, pytest.approx(2.0))]

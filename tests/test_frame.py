@@ -121,6 +121,15 @@ def test_frame_rejects_types_that_do_not_match_the_party():
         replace(read_frame(_Ram({0xD163: 1})), party_types=(0x15,))
 
 
+def test_frame_carries_the_hidden_events_found_since_the_last_step():
+    assert read_frame(_Ram(), hidden_events=((40, 3),)).hidden_events == ((40, 3),)
+
+
+def test_frame_rejects_a_hidden_event_that_does_not_fit_a_byte():
+    with pytest.raises(AssertionError, match="hidden event"):
+        replace(read_frame(_Ram()), hidden_events=((40, 256),))
+
+
 @requires_rom
 def test_start_state_respawns_in_pallet_town():
     assert _start_frame().respawn_map == 0

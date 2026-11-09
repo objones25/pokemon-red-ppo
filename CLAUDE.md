@@ -21,14 +21,15 @@ A 3M-step local run (one seed, `docs/evidence/learning/`) reached 693 unique til
 
 `scripts/setup.sh`, `scripts/train.sh`, pinning, SIGTERM saves and self-deletion with the pod-scoped key have run on a real
 A100 pod (`docs/evidence/pod_verification/RESULTS.md`). `launch_pod.sh` and `start.sh` have too. One full 400M-step run finished on an A100 in 17.6 hours, online to W&B, under the old level cap and metrics: events plateaued near 35 from about 200M, Misty reached 72% of episodes at best, and no episode got the S.S. Ticket. The final checkpoint, frozen, beat Misty in only 25 of 96 first episodes on an A100 (`docs/evidence/first_run/a100/`). Not the cause, as tested: hardware, snapshots, resets, old versus new code, number precision, the evaluator. The cause: from the same weights, PPO updates during the episode took Misty from 39.5% to 84% of first episodes, against frozen weights (`docs/evidence/first_run/update_test/`, `--init-from`, `--no-update-policy`). Training-time rates measure the policy plus its ongoing learning.
-A second 400M run (run2, per-place level cap, `docs/evidence/run2/AUDIT.md`) did worse against Misty (27% at best, 8% at the end) and ended with 54% of its steps stalled in Cerulean Gym: with its starter fainted it kept a level-5 Magikarp out and never took a turn. run3 (those fixes) reached 37-42 events but never fought Misty and never met Bill. Of run2's 320 stall states, 318 had never spoken to a nurse. Since then a nurse heal pays once per center, and a move term pays for stronger moves. Neither has been trained yet.
+A second 400M run (run2, per-place level cap, `docs/evidence/run2/AUDIT.md`) did worse against Misty (27% at best, 8% at the end) and ended with 54% of its steps stalled in Cerulean Gym: with its starter fainted it kept a level-5 Magikarp out and never took a turn. run3 (those fixes) reached 37-42 events but never fought Misty and never met Bill. Of run2's 320 stall states, 318 had never spoken to a nurse. run4 added a nurse heal paid once per center and a latched move term: it beat Misty in 95-99% of episodes from 120M and reached about 52 events, with the respawn point at Cerulean in 74 of 84 late stall states (run3: Pallet Town in all 320), and Bite on 90% of starters at level 24+ (run3: 10%). It never used Bill's Cell Separator (`docs/evidence/run4/`). Since then the move term is signed, so losing a move costs its score, and a hidden-event term pays once per PC, sign or poster pressed. Neither has been trained yet.
 Keep this section and **Commands** in step with the code, and do not document commands that do not exist.
 
 ## Requirements
 
 - **Start state:** `states/has_pokedex_squirtle.state`: Squirtle chosen, Pokedex received, in Oak's lab.
 - **No farmable reward:** every term pays at most once for the same thing, so each has a fixed lifetime maximum per
-  episode. Never add a repeatable term (heals, XP, money, battles, menu use). See **Reward rules**.
+  episode, and repeating any sequence of frames pays nothing more. Never add a repeatable term (heals, XP, money,
+  battles, menu use). Only a term declared `signed` may pay a negative reward. See **Reward rules**.
 - **GPU training on Runpod** (an A100-class pod), working from a network volume mounted at `/workspace`, with scripts
   that install dependencies, set up `.env`, run training and shut the pod down on completion.
 - **Resume and checkpointing:** training resumes from the latest checkpoint on the volume, with W&B logging on the
@@ -126,10 +127,13 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 | `LevelGain` | Per level gained, for each of 6 party places ranked by level, up to 5 levels over the next gym leader's ace (`LEVEL_CAP_BY_BADGES`: 19 before Brock, 26 before Misty). Each place keeps its highest level, so storing costs nothing and swapping earns nothing. A Pokemon pays nothing for the level it joins at (a bought level-5 Magikarp paid 5 levels in run2), only for levels it gains after. | 6 x 67 levels |
 | `NewSpecies` | Once per species owned (Pokedex owned bits); species owned at reset pay nothing, so a second of the same species pays nothing | 151 |
 | `CenterHeal` | Once per respawn point: a nurse heal that takes a hurt party to full HP, in a Pokemon Center whose respawn point (`D719`) is now this one. A heal at full HP pays nothing and leaves the center unpaid; blackouts heal on the battle map, so they never pay | One per center (12) |
-| `MoveGain` | Per rise in a party place's best total move score, ranked and latched like `LevelGain`. A move scores power x accuracy (x1.5 for its user's type), half for two-turn moves, and nothing for status, fixed-damage, one-hit-KO or self-fainting moves. A joining Pokemon is credited without pay | 6 places x 4 moves |
+| `MoveGain` (signed) | The change in the party's total move score: learning a stronger move pays, losing one costs, storing a Pokemon costs its moves, reordering pays nothing. A move scores power x accuracy (x1.5 for its user's type), half for moves that charge or recharge (Solar Beam, Skull Bash, Hyper Beam) but not Fly or Dig, and nothing for status, fixed-damage, one-hit-KO or self-fainting moves. A joining Pokemon is credited without pay | 6 Pokemon x 4 moves |
+| `HiddenEventGain` | Once per hidden event the game matches when A is pressed (a PC, sign, poster or trash can with no sprite; Bill's Cell Separator is one), read by a PyBoy hook on `CheckForHiddenEvent.foundMatchingEvent`, because its RAM is shared with other variables. Exploration, not progress: it does not reset the stall count | 212 |
 
 - Terms return this step's reward directly. Paying the change in a running total is what made upstream's stuck penalty
-  refund itself.
+  refund itself. `MoveGain` does pay a change, on purpose: run4 swapped Tackle for Bide once Bite had been paid, because
+  a latched term charged nothing for it. Its payments add up to the final total minus the first, minus join credits that
+  are never negative, so a replayed loop pays at most nothing, and Gen 1 has no move relearner and single-use TMs.
 - The heal term is the latched form all 41 winning Rubinstein runs used. The paper's repeatable form is farmable, though its
   399-heal figure is Bulbasaur only, and removing it cost Squirtle agents events (43.2 vs 51.8). Its first job is to
   move the respawn point forward, so a blackout no longer sends the agent back to Pallet Town.

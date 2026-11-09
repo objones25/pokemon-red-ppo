@@ -244,6 +244,27 @@ def test_first_step_of_the_next_phase_moves_on():
     assert telemetry.phase_rewards == {("event", 1): pytest.approx(2.0)}
 
 
+def test_a_move_cost_is_recorded_as_a_negative_reward():
+    telemetry = started()
+    telemetry.update(frame(), action=0, terms={"moves": 0.6})
+    telemetry.update(frame(), action=0, terms={"moves": -0.33})
+    assert telemetry.phase_rewards == {("moves", 0): pytest.approx(0.27)}
+
+
+def test_a_move_cost_is_not_progress():
+    telemetry = started(stall_steps=3)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={"moves": -0.33})
+    assert telemetry.dry_steps == 2
+
+
+def test_a_hidden_event_is_exploration_not_progress():
+    telemetry = started(stall_steps=3)
+    telemetry.update(frame(), action=0, terms=NO_TERMS)
+    telemetry.update(frame(), action=0, terms={"hidden": 0.1})
+    assert telemetry.dry_steps == 2
+
+
 def test_a_term_that_paid_nothing_records_nothing():
     telemetry = started()
     telemetry.update(frame(), action=0, terms=NO_TERMS)

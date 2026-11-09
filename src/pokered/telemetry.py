@@ -126,7 +126,7 @@ class EpisodeTelemetry:
         self._record_fight(frame)
         phase = (self.steps - 1) // PHASE_STEPS
         for name, value in terms.items():
-            if value > 0.0:
+            if value != 0.0:  # a signed term's cost is recorded too, so the report shows its net
                 self.phase_rewards[(name, phase)] = self.phase_rewards.get((name, phase), 0.0) + value
         if any(terms.get(name, 0.0) > 0.0 for name in PROGRESS_TERMS):
             if self.steps - self._last_story_step > self.stall_steps // 2:

@@ -97,7 +97,8 @@ def _reward_by_term(episodes: Sequence[EpisodeReport]) -> dict[str, float]:
     for episode in episodes:
         for (term, _), value in episode.detail.phase_rewards.items():
             totals[term] = totals.get(term, 0.0) + value
-    require(all(value > 0.0 for value in totals.values()), f"terms record only rewards they paid, got {totals}")
+    for term, value in totals.items():
+        check_finite(value, f"reward/{term}")
     return {f"reward/{term}": value / len(episodes) for term, value in sorted(totals.items())}
 
 

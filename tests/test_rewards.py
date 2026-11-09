@@ -17,6 +17,7 @@ from pokered.rewards import (
     CenterHeal,
     EpisodeReward,
     EventFlagGain,
+    HiddenEventGain,
     LevelGain,
     MoveGain,
     NewSpecies,
@@ -46,6 +47,7 @@ def frame(
     last_map=0,
     moves=None,
     types=None,
+    hidden=(),
 ) -> GameFrame:
     """Defaults: every Pokemon at full HP, knowing no moves, Water type; respawn in Pallet Town."""
     map_id, x, y = tile
@@ -53,7 +55,7 @@ def frame(
         map_id=map_id, x=x, y=y, in_battle=in_battle, event_flags=flags, badges=badges, party_levels=levels,
         party_hp=hp if hp is not None else tuple(1.0 for _ in levels), pokedex_owned=owned, respawn_map=respawn,
         last_map=last_map, party_moves=moves if moves is not None else (0,) * 4 * len(levels),
-        party_types=types if types is not None else (WATER, WATER) * len(levels),
+        party_types=types if types is not None else (WATER, WATER) * len(levels), hidden_events=hidden,
     )  # fmt: skip
 
 
@@ -553,9 +555,24 @@ def test_moves_that_do_not_scale_with_power_score_zero(effect, power):
     assert move_scores(_move(effect, power))[1].score == pytest.approx(0.0)
 
 
-@pytest.mark.parametrize("effect", [0x27, 0x2B, 0x50], ids=["charge", "fly", "hyper-beam"])
-def test_two_turn_moves_score_half(effect):
+@pytest.mark.parametrize("effect", [0x27, 0x50], ids=["charge", "hyper-beam"])
+def test_moves_that_charge_or_recharge_score_half(effect):
     assert move_scores(_move(effect, 100))[1].score == pytest.approx(50.0)
+
+
+def test_fly_scores_full_power_because_its_first_turn_cannot_be_hit():
+    assert move_scores(_move(0x2B, 100))[1].score == pytest.approx(100.0)
+
+
+def test_dig_scores_full_power_though_it_shares_the_charge_effect():
+    dig = 91  # pret constants/move_constants.asm; Gen 1 gives Dig CHARGE_EFFECT and checks its id for invulnerability
+    assert move_scores({dig: Move(dig, 0x27, 100, NORMAL, 255, 10)})[dig].score == pytest.approx(100.0)
+
+
+@requires_rom
+@pytest.mark.parametrize(("move_id", "score"), [(91, 100.0), (19, 70 * 242 / 255), (130, 50.0), (76, 60.0)], ids=["dig", "fly", "skull-bash", "solar-beam"])
+def test_the_rom_move_table_halves_only_charging_moves(move_id, score):
+    assert move_scores(RomTables(ROM).moves)[move_id].score == pytest.approx(score)
 
 
 @requires_rom
@@ -571,6 +588,9 @@ def test_the_rom_move_table_scores_explosion_zero():
 
 def _squirtle(*moves: int, level: int = 22) -> GameFrame:
     return frame(levels=(level,), moves=moves, types=(WATER, WATER))
+
+
+move_lists = st.lists(st.sampled_from([0, *SQUIRTLE_MOVES]), min_size=4, max_size=4)
 
 
 def _move_term() -> MoveGain:
@@ -601,12 +621,17 @@ def test_declining_a_move_pays_nothing():
     assert term(_squirtle(*SQUIRTLE_AT_15)) == pytest.approx(0.0)
 
 
-def test_relearning_a_forgotten_move_pays_nothing():
+def test_replacing_tackle_with_a_move_that_scores_nothing_costs_tackles_score():
     term = _move_term()
-    term.reset(_squirtle(*SQUIRTLE_AT_15))
-    term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN))
-    term(_squirtle(*SQUIRTLE_AT_15))
-    assert term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN)) == pytest.approx(0.0)
+    term.reset(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN))
+    assert term(_squirtle(TAIL_WHIP, BITE, BUBBLE, WATER_GUN)) == pytest.approx(-TACKLE_SCORE)
+
+
+def test_forgetting_and_relearning_a_move_nets_nothing():
+    term = _move_term()
+    term.reset(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN))
+    paid = [term(_squirtle(*SQUIRTLE_AT_15)), term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN))]
+    assert paid == pytest.approx([-60.0, 60.0])
 
 
 def test_a_joining_pokemon_pays_nothing_for_the_moves_it_knows():
@@ -651,16 +676,46 @@ def test_a_move_gets_stab_only_from_its_own_users_types():
     assert term(frame(levels=(9, 9), moves=(WATER_GUN, 0, 0, 0, 0, 0, 0, 0), types=(NORMAL, NORMAL, WATER, WATER))) == pytest.approx(40.0)
 
 
-def test_storing_the_weaker_pokemon_pays_nothing():
+def test_storing_a_pokemon_costs_its_moves_score():
     term = _move_term()
     term.reset(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, TACKLE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
-    assert term(_squirtle(*SQUIRTLE_AT_15)) == pytest.approx(0.0)
+    assert term(_squirtle(*SQUIRTLE_AT_15)) == pytest.approx(-1.5 * TACKLE_SCORE)
+
+
+def test_a_joining_pokemon_is_credited_while_the_party_keeps_paying_for_its_own_moves():
+    term = _move_term()
+    term.reset(_squirtle(*SQUIRTLE_AT_15))
+    joined = frame(levels=(22, 5), moves=(TACKLE, BITE, BUBBLE, WATER_GUN, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    assert term(joined) == pytest.approx(60.0)
+
+
+def test_a_pokemon_whose_level_reads_zero_counts_for_nothing_until_written():
+    term = _move_term()
+    term.reset(frame(levels=(22, 9), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
+    assert term(frame(levels=(22, 0), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))) == pytest.approx(-1.5 * 60.0)
+
+
+@given(st.lists(st.lists(move_lists, min_size=1, max_size=6), min_size=1, max_size=30))
+def test_replaying_any_move_trajectory_pays_nothing_more(trajectory):
+    term = _move_term()
+    party = [frame(levels=(9,) * len(mons), moves=tuple(m for mon in mons for m in mon)) for mons in trajectory]
+    term.reset(party[0])
+    _first_play = [term(item) for item in party]
+    assert sum(term(item) for item in party) <= 1e-9
 
 
 def test_an_episode_starting_mid_write_tolerates_unwritten_move_bytes():
     term = _move_term()
     term.reset(frame(levels=(22, 0), moves=(*SQUIRTLE_AT_15, 200, 0, 0, 0), types=(WATER, WATER, 0, 0)))
-    assert term(_squirtle(TACKLE, BITE, BUBBLE, WATER_GUN, level=22)) == pytest.approx(0.0)
+    written = frame(levels=(22, 5), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    assert term(written) == pytest.approx(0.0)
+
+
+def test_an_episode_starting_before_a_joining_pokemons_moves_are_written_tolerates_them():
+    term = _move_term()
+    term.reset(frame(levels=(22, 5), moves=(*SQUIRTLE_AT_15, 200, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL)))
+    written = frame(levels=(22, 5), moves=(*SQUIRTLE_AT_15, BITE, 0, 0, 0), types=(WATER, WATER, NORMAL, NORMAL))
+    assert term(written) == pytest.approx(1.5 * 60.0)
 
 
 def test_move_gain_rejects_an_empty_move_table():
@@ -687,9 +742,6 @@ def test_move_gain_rejects_a_frame_without_four_moves_per_pokemon():
         term.reset(frame(levels=(22,), moves=(TACKLE,)))
 
 
-move_lists = st.lists(st.sampled_from([0, *SQUIRTLE_MOVES]), min_size=4, max_size=4)
-
-
 @given(st.lists(st.lists(move_lists, min_size=1, max_size=6), min_size=1, max_size=30))
 def test_lifetime_move_pay_never_exceeds_six_places_of_four_best_moves(trajectory):
     term = _move_term()
@@ -697,6 +749,67 @@ def test_lifetime_move_pay_never_exceeds_six_places_of_four_best_moves(trajector
     party = [frame(levels=(9,) * len(mons), moves=tuple(m for mon in mons for m in mon)) for mons in trajectory]
     total = sum(term(item) for item in party)
     assert total <= 6 * 4 * 1.5 * 60
+
+
+# --- HiddenEventGain: pressing A on a PC, sign or poster the game lists as a hidden event ---
+OAKS_LAB, BILLS_HOUSE = 40, 88
+
+
+def test_triggering_a_hidden_event_pays_its_weight():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    assert term(frame(hidden=((BILLS_HOUSE, 0),))) == pytest.approx(0.1)
+
+
+def test_triggering_the_same_hidden_event_again_pays_nothing():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    term(frame(hidden=((BILLS_HOUSE, 0),)))
+    assert term(frame(hidden=((BILLS_HOUSE, 0),))) == pytest.approx(0.0)
+
+
+def test_the_same_index_on_another_map_is_another_hidden_event():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    term(frame(hidden=((BILLS_HOUSE, 0),)))
+    assert term(frame(hidden=((OAKS_LAB, 0),))) == pytest.approx(0.1)
+
+
+def test_two_new_hidden_events_in_one_step_pay_for_each():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    assert term(frame(hidden=((OAKS_LAB, 2), (OAKS_LAB, 3)))) == pytest.approx(0.2)
+
+
+def test_a_step_without_a_hidden_event_pays_nothing():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    assert term(frame()) == pytest.approx(0.0)
+
+
+def test_a_hidden_event_found_before_the_episode_pays_nothing():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame(hidden=((OAKS_LAB, 3),)))
+    assert term(frame(hidden=((OAKS_LAB, 3),))) == pytest.approx(0.0)
+
+
+def test_reset_forgets_the_hidden_events_found():
+    term = HiddenEventGain(weight=0.1)
+    term.reset(frame())
+    term(frame(hidden=((OAKS_LAB, 3),)))
+    term.reset(frame())
+    assert term(frame(hidden=((OAKS_LAB, 3),))) == pytest.approx(0.1)
+
+
+hidden_lists = st.lists(st.tuples(st.integers(0, 3), st.integers(0, 3)), max_size=3).map(tuple)
+
+
+@given(st.lists(hidden_lists, min_size=1, max_size=30))
+def test_hidden_events_pay_once_each(trajectory):
+    term = HiddenEventGain(weight=1.0)
+    term.reset(frame())
+    total = sum(term(frame(hidden=found)) for found in trajectory)
+    assert total == pytest.approx(len({event for found in trajectory for event in found}))
 
 
 # --- EpisodeReward and the anti-farming properties -----------------------
@@ -707,6 +820,7 @@ def _episode() -> EpisodeReward:
         [
             NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5),
             NewSpecies(weight=1.0), CenterHeal(weight=5.0), MoveGain(weight=0.01, scores=move_scores(SQUIRTLE_MOVES)),
+            HiddenEventGain(weight=0.1),
         ]
     )  # fmt: skip
 
@@ -715,7 +829,7 @@ def test_episode_reward_reports_each_term_by_name():
     episode = _episode()
     episode.reset(frame())
     assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx(
-        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0}
+        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0, "hidden": 0.0}
     )
 
 
@@ -751,6 +865,7 @@ frames = st.builds(
     moves=st.lists(st.sampled_from([0, *SQUIRTLE_MOVES]), min_size=24, max_size=24),
     respawn_map=st.integers(0, 3),
     last_map=st.integers(0, 3),
+    hidden_events=hidden_lists,
 )
 
 
@@ -759,15 +874,16 @@ def test_replaying_any_trajectory_pays_nothing_the_second_time(trajectory):
     episode = _episode()
     episode.reset(trajectory[0])
     _play(episode, trajectory)
-    assert _play(episode, trajectory) == pytest.approx(0.0)
+    assert _play(episode, trajectory) <= 1e-9
 
 
 @given(st.lists(frames, min_size=1, max_size=30))
-def test_no_step_ever_pays_a_negative_reward(trajectory):
+def test_only_the_move_term_ever_pays_a_negative_reward(trajectory):
     episode = _episode()
     episode.reset(trajectory[0])
-    rewards = [value for item in trajectory for value in episode.step(item).values()]
+    rewards = [value for item in trajectory for name, value in episode.step(item).items() if name != "moves"]
     assert min(rewards) >= 0.0
+
 
 
 def test_grinding_forever_earns_at_most_the_level_budget():
