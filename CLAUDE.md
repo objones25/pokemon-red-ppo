@@ -168,26 +168,9 @@ takes its env, logger and store as arguments, so tests run it on fakes. Workers 
 
 ## GPU and Runpod
 
-PyBoy runs on the CPU, so **a GPU only speeds up the policy**. Measured on an A100 SXM with an AMD EPYC 7742
-(`docs/CONFLICT_RESOLUTIONS.md` §8): a Nature CNN reaches 4–7% GPU utilization and at best 2,966 steps/s, about 11% above
-the M4 Pro, because each emulator step takes about 6.4 ms against about 2.1–2.6 ms. A larger model or more epochs raise
-utilization but cost throughput and have no proven learning benefit, so don't add them for utilization alone.
-
-On a pod, read the real CPU limit from the cgroup rather than the API (32 vCPUs reported, 27.2 usable on that host; 31 and
-26.35 on another, whose limit is in cgroup v1 files), use one worker per usable core at most, and pin workers to the
-quietest physical cores on the GPU's NUMA node (`--pin-workers`): other tenants' load made the lowest CPUs 40% slower on a shared host.
-
-A second host, an A100 PCIe with an EPYC 7763 VM, ran `pokered-train` at about 3,000 steps/s accurate and 6,300 with `--env.fast-mode`, k=8, T=512.
-
-The user's separate `massively-parallel-rl` project (`~/Desktop/CS291K/massively-parallel-rl`) is the working example. Follow these parts of it:
-
-- `scripts/setup.sh`, `scripts/train.sh`, `docs/runbook.md`: the volume-mount check, a venv and uv cache on the
-  container disk (never the volume), and `.env` prompts.
-- `src/mprl/runpod.py`: `PodTerminator` (read, delete, confirm gone).
-- `src/mprl/checkpoints.py`, `run_state.py`: atomic checkpoints and resume state.
-- `src/mprl/wandb_writer.py`: a fixed run id with `resume="allow"`. Its notes record that `resume_from` is a private
-  preview, and that resume must re-randomize episode lengths or all envs reset together.
-- Don't copy its versions (torch 2.8.0, its base image) without re-checking them.
+PyBoy runs on the CPU, so a GPU only speeds up the policy. Before sizing workers, pinning, or changing the model for GPU
+utilization, load the `pod-training` skill (`.claude/skills/pod-training/SKILL.md`): it holds the measured throughput and the
+parts of `massively-parallel-rl` to follow.
 
 ## Background documents
 
