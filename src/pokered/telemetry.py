@@ -13,8 +13,8 @@ from pokered.frame import GameFrame
 from pokered.negative_space import require
 
 # What ends a stall. Tiles don't count: an agent can wander for a long time, still paying for new tiles, without any
-# story progress.
-PROGRESS_TERMS: Final[tuple[str, ...]] = ("event", "badge", "level", "species", "heal", "moves")
+# story progress. A new map does: there are only 248, and reaching the next one is how the story moves on.
+PROGRESS_TERMS: Final[tuple[str, ...]] = ("event", "badge", "level", "species", "heal", "moves", "map")
 PHASE_STEPS: Final[int] = 10_240
 _TRAINER_OPPONENT_BASE: Final[int] = 200
 

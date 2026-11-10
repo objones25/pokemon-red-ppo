@@ -395,6 +395,30 @@ class HiddenEventGain:
         return self.weight * len(new)
 
 
+@dataclass(slots=True)
+class NewMap:
+    """Pays once per map id entered (pret map_constants.asm has 248), and nothing for the map the episode starts on.
+    run5 parked in the Pokemon Fan Club once it had the Bike Voucher, a short walk from the S.S. Anne's dock: a tile
+    pays 1/400 of an event, so no unentered door was worth leaving for."""
+
+    weight: float
+    name: str = "map"
+    signed: ClassVar[bool] = False
+    _seen: set[int] = field(default_factory=set, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._seen = {first.map_id}
+
+    def __call__(self, frame: GameFrame) -> float:
+        if frame.map_id in self._seen:
+            return 0.0
+        self._seen.add(frame.map_id)
+        return self.weight
+
+
 class EpisodeReward:
     """Runs the terms for one episode and reports each one's reward by name."""
 

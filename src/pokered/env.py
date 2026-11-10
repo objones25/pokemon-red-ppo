@@ -25,6 +25,7 @@ from pokered.rewards import (
     HiddenEventGain,
     LevelGain,
     MoveGain,
+    NewMap,
     NewSpecies,
     NewTile,
     move_scores,
@@ -59,6 +60,7 @@ class PokemonRedEnv(gym.Env):
                 CenterHeal(config.heal_weight),
                 MoveGain(config.move_weight, move_scores(RomTables(config.rom).moves)),
                 HiddenEventGain(config.hidden_weight),
+                NewMap(config.map_weight),
             ]
         )
         self._milestones = MilestoneTracker()
