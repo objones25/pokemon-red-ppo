@@ -6,8 +6,9 @@ import io
 from dataclasses import replace
 
 import pytest
-from support import ROM, requires_rom
+from support import REPO, ROM, requires_rom
 
+from pokered import ram_map
 from pokered.buttons import BUTTONS
 from pokered.config import EnvConfig
 from pokered.env import PokemonRedEnv
@@ -76,6 +77,61 @@ def test_leaving_oaks_lab_pays_the_map_term_once(make_env):
     steps = [env.step(BUTTONS.index("down")) for _ in range(16)]  # out of the door on the ninth, then against a ledge
     assert steps[-1][4]["map_id"] == 0  # Pallet Town
     assert sum(step[4]["reward_terms"]["map"] for step in steps) == pytest.approx(0.75)
+
+
+TREE_STATE = REPO / "tests" / "states" / "vermilion_gym_tree.state"  # run6 save: (15, 17) in Vermilion, facing the tree
+RIVAL_BEATEN_STATE = REPO / "tests" / "states" / "ss_anne_rival_beaten.state"  # run6 save after the S.S. Anne rival win
+
+
+def _cut_through_the_menu(env) -> list[dict]:
+    """Teach the first Pokemon Cut in RAM (test setup), then use it from the field menu with env steps, steering by
+    the menu cursor. Returns each step's reward terms."""
+    first = ram_map.PARTY_MONS
+    env.pyboy.memory[first + ram_map.OFF_MOVES + 3] = ram_map.CUT
+    env.pyboy.memory[first + ram_map.OFF_PP + 3] = 30
+    terms = []
+
+    def push(button: str) -> None:
+        terms.append(env.step(BUTTONS.index(button))[4]["reward_terms"])
+
+    def to(item: int, button: str) -> None:
+        for _ in range(8):
+            if env.pyboy.memory[ram_map.MENU_CURSOR] == item:
+                return
+            push(button)
+
+    push("start")
+    to(1, "down")
+    push("a")
+    to(0, "up")
+    push("a")
+    to(0, "up")
+    for _ in range(6):
+        push("a")
+    return terms
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("fast_mode", [False, True], ids=["accurate", "fast"])
+def test_cutting_the_vermilion_gym_tree_pays_the_tree_term_once(make_env, fast_mode):
+    env = make_env(state=TREE_STATE, tree_weight=2.5, fast_mode=fast_mode)
+    env.reset(seed=0)
+    terms = _cut_through_the_menu(env)
+    assert sum(step["trees"] for step in terms) == pytest.approx(2.5)
+
+
+def test_a_rival_beaten_before_the_episode_pays_nothing(make_env):
+    env = make_env(state=RIVAL_BEATEN_STATE, ss_anne_rival_weight=5.0)
+    env.reset(seed=0)
+    paid = [env.step(BUTTONS.index("b"))[4]["reward_terms"]["ss_anne_rival"] for _ in range(5)]
+    assert sum(paid) == pytest.approx(0.0)
+
+
+def test_step_reports_the_cut_chain_terms(make_env):
+    env = make_env()
+    env.reset(seed=0)
+    _, _, _, _, info = env.step(BUTTONS.index("down"))
+    assert {"ss_anne_rival", "cut_learner", "knows_cut", "balls", "trees"} <= info["reward_terms"].keys()
 
 
 def test_walking_to_a_new_tile_pays_exploration(make_env):

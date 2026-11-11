@@ -10,20 +10,27 @@ from support import ROM, requires_rom
 from pokered.frame import EVENT_FLAG_BYTES, GameFrame
 from pokered.ram_map import POKEDEX_BYTES, Move, RomTables
 from pokered.rewards import (
+    BALL_CAP,
     GYM_ACE_LEVEL_BY_BADGES,
     LEVEL_CAP_BY_BADGES,
     MUSEUM_TICKET,
     BadgeGain,
+    BallStock,
     CenterHeal,
     EpisodeReward,
     EventFlagGain,
+    FirstTime,
     HiddenEventGain,
     LevelGain,
     MoveGain,
     NewMap,
     NewSpecies,
     NewTile,
+    TreeCut,
+    knows_cut,
     move_scores,
+    party_has_any,
+    ss_anne_rival_beaten,
 )
 
 NO_FLAGS = bytes(EVENT_FLAG_BYTES)
@@ -33,6 +40,10 @@ NO_SPECIES = bytes(POKEDEX_BYTES)
 NORMAL, WATER = 0x00, 0x15
 PALLET_TOWN, PEWTER_CITY, CERULEAN_CITY, ROUTE_3 = 0x00, 0x02, 0x03, 0x0E
 PEWTER_POKECENTER, CERULEAN_POKECENTER = 0x3A, 0x40
+# pret constants/pokemon_constants.asm (internal IDs) and move_constants.asm.
+SQUIRTLE_ID, ODDISH_ID, CUT = 0xB1, 0xB9, 0x0F
+VERMILION_CITY = 0x05
+TREE, GYM_TREE, GRASS = 0x3D, 0x50, 0x52
 
 
 def frame(
@@ -49,6 +60,10 @@ def frame(
     moves=None,
     types=None,
     hidden=(),
+    ss_anne_2f_script=0,
+    species=None,
+    balls=0,
+    cuts=(),
 ) -> GameFrame:
     """Defaults: every Pokemon at full HP, knowing no moves, Water type; respawn in Pallet Town."""
     map_id, x, y = tile
@@ -57,6 +72,8 @@ def frame(
         party_hp=hp if hp is not None else tuple(1.0 for _ in levels), pokedex_owned=owned, respawn_map=respawn,
         last_map=last_map, party_moves=moves if moves is not None else (0,) * 4 * len(levels),
         party_types=types if types is not None else (WATER, WATER) * len(levels), hidden_events=hidden,
+        ss_anne_2f_script=ss_anne_2f_script, party_species=species if species is not None else (SQUIRTLE_ID,) * len(levels),
+        poke_balls=balls, cuts=cuts,
     )  # fmt: skip
 
 
@@ -852,6 +869,155 @@ def test_new_map_pays_once_per_distinct_map(map_ids):
     assert total == pytest.approx(len(set(map_ids) - {PALLET_TOWN}))
 
 
+# --- FirstTime: the Cut chain's latched steps -------------------------------
+
+
+def _rival_term(weight=5.0):
+    return FirstTime("ss_anne_rival", weight, ss_anne_rival_beaten)
+
+
+def test_first_time_pays_the_first_step_its_condition_holds():
+    term = _rival_term()
+    term.reset(frame(ss_anne_2f_script=0))
+    assert term(frame(ss_anne_2f_script=3)) == pytest.approx(5.0)
+
+
+def test_first_time_pays_nothing_while_the_condition_keeps_holding():
+    term = _rival_term()
+    term.reset(frame(ss_anne_2f_script=0))
+    term(frame(ss_anne_2f_script=3))
+    assert term(frame(ss_anne_2f_script=4)) == pytest.approx(0.0)
+
+
+def test_first_time_pays_nothing_for_a_condition_met_before_the_episode():
+    term = _rival_term()
+    term.reset(frame(ss_anne_2f_script=4))
+    assert term(frame(ss_anne_2f_script=4)) == pytest.approx(0.0)
+
+
+def test_first_time_pays_again_after_a_reset_to_an_unmet_start():
+    term = _rival_term()
+    term.reset(frame(ss_anne_2f_script=0))
+    term(frame(ss_anne_2f_script=3))
+    term.reset(frame(ss_anne_2f_script=0))
+    assert term(frame(ss_anne_2f_script=3)) == pytest.approx(5.0)
+
+
+@pytest.mark.parametrize(("script", "beaten"), [(0, False), (1, False), (2, False), (3, True), (4, True)])
+def test_the_rival_counts_as_beaten_only_once_the_script_passes_the_fight(script, beaten):
+    # pret scripts/SSAnne2F.asm: 1 starts the fight, 2 is the fight, a loss resets to 0, a win moves to 3 then 4.
+    assert ss_anne_rival_beaten(frame(ss_anne_2f_script=script)) is beaten
+
+
+def test_knowing_cut_needs_cut_in_some_party_members_moves():
+    assert knows_cut(frame(levels=(31, 14), moves=(33, 44, 145, 55, 71, CUT, 0, 0)))
+
+
+def test_a_party_without_cut_does_not_know_cut():
+    assert not knows_cut(frame(levels=(31,), moves=(33, 44, 145, 55)))
+
+
+def test_a_party_with_a_listed_species_has_one():
+    assert party_has_any(frozenset({ODDISH_ID}))(frame(levels=(31, 14), species=(SQUIRTLE_ID, ODDISH_ID)))
+
+
+def test_a_party_without_a_listed_species_has_none():
+    assert not party_has_any(frozenset({ODDISH_ID}))(frame(levels=(31,), species=(SQUIRTLE_ID,)))
+
+
+# --- BallStock --------------------------------------------------------------
+
+
+def test_ball_stock_pays_per_ball_held():
+    term = BallStock(weight=0.4)
+    term.reset(frame(balls=0))
+    assert term(frame(balls=3)) == pytest.approx(1.2)
+
+
+def test_ball_stock_pays_nothing_past_the_cap():
+    term = BallStock(weight=0.4)
+    term.reset(frame(balls=0))
+    assert term(frame(balls=BALL_CAP + 7)) == pytest.approx(0.4 * BALL_CAP)
+
+
+def test_throwing_balls_and_buying_them_back_pays_nothing():
+    term = BallStock(weight=0.4)
+    term.reset(frame(balls=0))
+    term(frame(balls=3))
+    term(frame(balls=0))
+    assert term(frame(balls=3)) == pytest.approx(0.0)
+
+
+def test_ball_stock_pays_only_for_balls_beyond_the_most_held():
+    term = BallStock(weight=0.4)
+    term.reset(frame(balls=0))
+    term(frame(balls=2))
+    term(frame(balls=1))
+    assert term(frame(balls=4)) == pytest.approx(0.8)
+
+
+def test_balls_held_at_reset_pay_nothing():
+    term = BallStock(weight=0.4)
+    term.reset(frame(balls=3))
+    assert term(frame(balls=4)) == pytest.approx(0.4)
+
+
+@given(st.lists(st.integers(0, 99), max_size=40))
+def test_ball_stock_never_pays_more_than_the_cap(counts):
+    term = BallStock(weight=1.0)
+    term.reset(frame(balls=0))
+    assert sum(term(frame(balls=count)) for count in counts) <= BALL_CAP + 1e-9
+
+
+# --- TreeCut ------------------------------------------------------------------
+
+VERMILION_TREE = (VERMILION_CITY, 15, 17, 0, TREE)
+
+
+def test_cutting_a_tree_pays():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    assert term(frame(cuts=(VERMILION_TREE,))) == pytest.approx(5.0)
+
+
+def test_a_tree_cut_before_the_episode_pays_nothing():
+    term = TreeCut(weight=5.0)
+    term.reset(frame(cuts=(VERMILION_TREE,)))
+    assert term(frame(cuts=(VERMILION_TREE,))) == pytest.approx(0.0)
+
+
+def test_cutting_the_same_tree_again_pays_nothing():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    term(frame(cuts=(VERMILION_TREE,)))
+    assert term(frame(cuts=(VERMILION_TREE,))) == pytest.approx(0.0)
+
+
+def test_cutting_a_different_tree_pays():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    term(frame(cuts=(VERMILION_TREE,)))
+    assert term(frame(cuts=((CERULEAN_CITY, 19, 28, 4, TREE),))) == pytest.approx(5.0)
+
+
+def test_cutting_a_gym_tree_pays():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    assert term(frame(cuts=((0x86, 2, 4, 0, GYM_TREE),))) == pytest.approx(5.0)
+
+
+def test_cutting_grass_pays_nothing():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    assert term(frame(cuts=((VERMILION_CITY, 20, 20, 0, GRASS),))) == pytest.approx(0.0)
+
+
+def test_a_tree_cut_twice_in_one_step_pays_once():
+    term = TreeCut(weight=5.0)
+    term.reset(frame())
+    assert term(frame(cuts=(VERMILION_TREE, VERMILION_TREE))) == pytest.approx(5.0)
+
+
 # --- EpisodeReward and the anti-farming properties -----------------------
 
 
@@ -860,7 +1026,9 @@ def _episode() -> EpisodeReward:
         [
             NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5),
             NewSpecies(weight=1.0), CenterHeal(weight=5.0), MoveGain(weight=0.01, scores=move_scores(SQUIRTLE_MOVES)),
-            HiddenEventGain(weight=0.1), NewMap(weight=1.0),
+            HiddenEventGain(weight=0.1), NewMap(weight=1.0), _rival_term(),
+            FirstTime("cut_learner", 5.0, party_has_any(frozenset({ODDISH_ID}))), FirstTime("knows_cut", 5.0, knows_cut),
+            BallStock(weight=0.4), TreeCut(weight=5.0),
         ]
     )  # fmt: skip
 
@@ -869,7 +1037,22 @@ def test_episode_reward_reports_each_term_by_name():
     episode = _episode()
     episode.reset(frame())
     assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx(
-        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0, "hidden": 0.0, "map": 0.0}
+        {
+            "explore": 0.005,
+            "event": 0.0,
+            "badge": 0.0,
+            "level": 0.0,
+            "species": 0.0,
+            "heal": 0.0,
+            "moves": 0.0,
+            "hidden": 0.0,
+            "map": 0.0,
+            "ss_anne_rival": 0.0,
+            "cut_learner": 0.0,
+            "knows_cut": 0.0,
+            "balls": 0.0,
+            "trees": 0.0,
+        }
     )
 
 
@@ -886,9 +1069,10 @@ def _generated_frame(**fields) -> GameFrame:
     """Full HP always: a heal pays the first time HP is restored, which a replay can create (see CenterHeal tests)."""
     levels = fields.pop("party_levels")
     moves = fields.pop("moves")
+    species = fields.pop("species")
     return GameFrame(
         party_levels=levels, party_hp=tuple(1.0 for _ in levels), party_moves=tuple(moves[: 4 * len(levels)]),
-        party_types=(WATER, WATER) * len(levels), **fields,
+        party_types=(WATER, WATER) * len(levels), party_species=tuple(species[: len(levels)]), **fields,
     )  # fmt: skip
 
 
@@ -906,6 +1090,19 @@ frames = st.builds(
     respawn_map=st.integers(0, 3),
     last_map=st.integers(0, 3),
     hidden_events=hidden_lists,
+    species=st.lists(st.sampled_from([SQUIRTLE_ID, ODDISH_ID]), min_size=6, max_size=6),
+    ss_anne_2f_script=st.integers(0, 4),
+    poke_balls=st.integers(0, 12),
+    cuts=st.lists(
+        st.tuples(
+            st.just(VERMILION_CITY),
+            st.integers(0, 2),
+            st.integers(0, 2),
+            st.sampled_from([0, 4]),
+            st.sampled_from([TREE, GRASS]),
+        ),
+        max_size=2,
+    ).map(tuple),
 )
 
 
@@ -923,7 +1120,6 @@ def test_only_the_move_term_ever_pays_a_negative_reward(trajectory):
     episode.reset(trajectory[0])
     rewards = [value for item in trajectory for name, value in episode.step(item).items() if name != "moves"]
     assert min(rewards) >= 0.0
-
 
 
 def test_grinding_forever_earns_at_most_the_level_budget():

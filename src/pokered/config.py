@@ -26,6 +26,11 @@ class EnvConfig:
     move_weight: float = 0.01
     hidden_weight: float = 0.1
     map_weight: float = 1.0
+    ss_anne_rival_weight: float = 5.0
+    cut_learner_weight: float = 5.0
+    knows_cut_weight: float = 5.0
+    ball_weight: float = 0.4
+    tree_weight: float = 5.0
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True

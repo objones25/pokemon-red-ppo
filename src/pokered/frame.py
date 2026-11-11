@@ -31,7 +31,13 @@ class GameFrame:
     party_types: tuple[int, ...] = ()  # two per Pokemon, in party order; the same type twice for a single type
     respawn_map: int = 0  # where a blackout returns the player (Pallet Town until a nurse heals)
     last_map: int = 0  # the outdoor map the player last left
-    hidden_events: tuple[tuple[int, int], ...] = ()  # (map, index) of each hidden event the game matched since the last frame
+    hidden_events: tuple[
+        tuple[int, int], ...
+    ] = ()  # (map, index) of each hidden event the game matched since the last frame
+    ss_anne_2f_script: int = 0  # wSSAnne2FCurScript: at or above ram_map.SS_ANNE_RIVAL_BEATEN once the rival is beaten
+    party_species: tuple[int, ...] = ()  # internal IDs, in party order
+    poke_balls: int = 0  # balls of every kind in the bag
+    cuts: tuple[tuple[int, int, int, int, int], ...] = ()  # (map, x, y, facing, tile) of each cut since the last frame
 
     def __post_init__(self) -> None:
         require(len(self.event_flags) == EVENT_FLAG_BYTES, f"event flags must be {EVENT_FLAG_BYTES} bytes")
@@ -45,6 +51,19 @@ class GameFrame:
             all(0 <= map_id <= 0xFF and 0 <= index <= 0xFF for map_id, index in self.hidden_events),
             f"a hidden event is a (map, index) pair of bytes, got {self.hidden_events}",
         )
+        require(
+            0 <= self.ss_anne_2f_script <= 0xFF,
+            f"the S.S. Anne 2F script must fit a byte, got {self.ss_anne_2f_script}",
+        )
+        require(
+            len(self.party_species) in (0, len(self.party_levels)),
+            f"expected one species per Pokemon, got {self.party_species}",
+        )
+        require(self.poke_balls >= 0, f"ball count cannot be negative, got {self.poke_balls}")
+        require(
+            all(len(cut) == 5 and all(0 <= value <= 0xFF for value in cut) for cut in self.cuts),
+            f"a cut is (map, x, y, facing, tile), each a byte, got {self.cuts}",
+        )
 
 
 def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP001 clamped by construction; GameFrame checks the range
@@ -54,7 +73,12 @@ def _hp_fraction(mem: ram_map.Memory, address: int) -> float:  # nsp: ignore NSP
     return min(ram_map.read_u16(mem, address + ram_map.OFF_HP) / maximum, 1.0)
 
 
-def read_frame(mem: ram_map.Memory, *, hidden_events: tuple[tuple[int, int], ...] = ()) -> GameFrame:
+def read_frame(
+    mem: ram_map.Memory,
+    *,
+    hidden_events: tuple[tuple[int, int], ...] = (),
+    cuts: tuple[tuple[int, int, int, int, int], ...] = (),
+) -> GameFrame:
     count = mem[ram_map.PARTY_COUNT]
     if count > ram_map.MAX_PARTY:
         raise ValueError(f"party count {count} exceeds {ram_map.MAX_PARTY}")
@@ -78,4 +102,8 @@ def read_frame(mem: ram_map.Memory, *, hidden_events: tuple[tuple[int, int], ...
         respawn_map=mem[ram_map.RESPAWN_MAP],
         last_map=mem[ram_map.LAST_MAP],
         hidden_events=hidden_events,
+        ss_anne_2f_script=mem[ram_map.SS_ANNE_2F_SCRIPT],
+        party_species=tuple(mem[address + ram_map.OFF_SPECIES] for address in party),
+        poke_balls=sum(count for item, count in ram_map.read_bag(mem) if item in ram_map.BALL_ITEMS),
+        cuts=cuts,
     )

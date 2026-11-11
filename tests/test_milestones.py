@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import pytest
 
@@ -34,6 +35,7 @@ def _tracker() -> MilestoneTracker:
         ("mt_moon", {"map_id": 59}),
         ("cerulean_city", {"map_id": 3}),
         ("vermilion_city", {"map_id": 5}),
+        ("vermilion_gym", {"map_id": 92}),
         # Event numbers from constants/event_constants.asm, as (byte, bit) = (n // 8, n % 8).
         ("beat_brock", {"flag": (14, 7)}),
         ("beat_misty", {"flag": (23, 7)}),
@@ -118,6 +120,23 @@ def test_move_milestone_needs_the_move_in_the_party():
     assert milestone.reached(bare) is False
 
 
-@pytest.mark.parametrize("name", ["beat_cerulean_rival", "got_ss_ticket", "trashed_house", "knows_cut", "has_silph_scope"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "beat_cerulean_rival",
+        "got_ss_ticket",
+        "trashed_house",
+        "has_poke_ball",
+        "knows_cut",
+        "vermilion_gym",
+        "has_silph_scope",
+    ],
+)
 def test_story_chain_tracks_the_steps_past_misty(name):
     assert name in {milestone.name for milestone in MILESTONES}
+
+
+def test_holding_a_poke_ball_reaches_the_ball_milestone():
+    tracker = _tracker()
+    tracker.update(replace(_frame(), bag_items=(0x04,)), step=5)  # POKE_BALL, pret constants/item_constants.asm
+    assert tracker.summary()["milestone_has_poke_ball"] == pytest.approx(1.0)
