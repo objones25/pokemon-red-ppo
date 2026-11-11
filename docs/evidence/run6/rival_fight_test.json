@@ -1,0 +1,182 @@
+[
+ {
+  "state": "seed13_16913_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed13_16913_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed16_16748_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed16_16748_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed17_26257_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 6,
+  "trials": 8
+ },
+ {
+  "state": "seed17_26257_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed23_15272_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed23_15272_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed24_16166_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 3,
+  "trials": 8
+ },
+ {
+  "state": "seed24_16166_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed25_16691_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed25_16691_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed2_16747_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed2_16747_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed30_16228_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed30_16228_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed31_15634_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed31_15634_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed36_16094_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed36_16094_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed39_15493_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed39_15493_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 7,
+  "trials": 8
+ },
+ {
+  "state": "seed3_22140_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 2,
+  "trials": 8
+ },
+ {
+  "state": "seed3_22140_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed47_15562_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed47_15562_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed60_19832_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed60_19832_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ },
+ {
+  "state": "seed61_15901_start_RIVAL2_2.state",
+  "healed": false,
+  "wins": 0,
+  "trials": 8
+ },
+ {
+  "state": "seed61_15901_start_RIVAL2_2.state",
+  "healed": true,
+  "wins": 8,
+  "trials": 8
+ }
+]
