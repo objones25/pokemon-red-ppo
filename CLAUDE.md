@@ -97,6 +97,13 @@ scripts/train.sh                                  # foreground, fast_mode: resum
 
 Locally: `uv run pokered-train --env.rom "Pokemon Red.gb" --wandb-mode offline`.
 
+Record one episode of a checkpoint to an MP4 (needs ffmpeg), with a `.json` timeline of each milestone's step and video time.
+One frame per agent step, so 60 fps plays at 24x game speed; `--stop-after` ends the video `--tail-steps` after a milestone:
+
+```bash
+uv run pokered-record --rom "Pokemon Red.gb" --checkpoints RUN_DIR/checkpoints --output video/seed0.mp4 --seed 0 --stop-after knows_cut
+```
+
 ROM tests skip when `Pokemon Red.gb` is missing from the repo root. Its SHA-1 must be
 `ea9bcae617fdf159b045185467ae58b2e4a48b9a`.
 
