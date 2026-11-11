@@ -70,6 +70,14 @@ def test_reading_oaks_email_pays_the_hidden_event_once(make_env, fast_mode):
     assert sum(paid) == pytest.approx(0.5)
 
 
+def test_leaving_oaks_lab_pays_the_map_term_once(make_env):
+    env = make_env(map_weight=0.75)
+    env.reset(seed=0)
+    steps = [env.step(BUTTONS.index("down")) for _ in range(16)]  # out of the door on the ninth, then against a ledge
+    assert steps[-1][4]["map_id"] == 0  # Pallet Town
+    assert sum(step[4]["reward_terms"]["map"] for step in steps) == pytest.approx(0.75)
+
+
 def test_walking_to_a_new_tile_pays_exploration(make_env):
     env = make_env(tile_weight=0.25)
     env.reset(seed=0)

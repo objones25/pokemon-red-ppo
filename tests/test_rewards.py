@@ -20,6 +20,7 @@ from pokered.rewards import (
     HiddenEventGain,
     LevelGain,
     MoveGain,
+    NewMap,
     NewSpecies,
     NewTile,
     move_scores,
@@ -812,6 +813,45 @@ def test_hidden_events_pay_once_each(trajectory):
     assert total == pytest.approx(len({event for found in trajectory for event in found}))
 
 
+# --- NewMap --------------------------------------------------------------
+
+
+def test_new_map_pays_weight_on_first_entry():
+    term = NewMap(weight=1.5)
+    term.reset(frame(tile=(PALLET_TOWN, 5, 5)))
+    assert term(frame(tile=(ROUTE_3, 0, 0))) == pytest.approx(1.5)
+
+
+def test_new_map_pays_nothing_on_reentry():
+    term = NewMap(weight=1.5)
+    term.reset(frame(tile=(PALLET_TOWN, 5, 5)))
+    term(frame(tile=(ROUTE_3, 0, 0)))
+    term(frame(tile=(PALLET_TOWN, 5, 5)))
+    assert term(frame(tile=(ROUTE_3, 0, 0))) == pytest.approx(0.0)
+
+
+def test_new_map_pays_nothing_for_the_start_map():
+    term = NewMap(weight=1.5)
+    term.reset(frame(tile=(PALLET_TOWN, 5, 5)))
+    assert term(frame(tile=(PALLET_TOWN, 6, 5))) == pytest.approx(0.0)
+
+
+def test_new_map_forgets_maps_from_the_last_episode():
+    term = NewMap(weight=1.5)
+    term.reset(frame(tile=(PALLET_TOWN, 5, 5)))
+    term(frame(tile=(ROUTE_3, 0, 0)))
+    term.reset(frame(tile=(PALLET_TOWN, 5, 5)))
+    assert term(frame(tile=(ROUTE_3, 0, 0))) == pytest.approx(1.5)
+
+
+@given(st.lists(st.integers(0, 247), max_size=60))
+def test_new_map_pays_once_per_distinct_map(map_ids):
+    term = NewMap(weight=1.0)
+    term.reset(frame(tile=(PALLET_TOWN, 0, 0)))
+    total = sum(term(frame(tile=(map_id, 0, 0))) for map_id in map_ids)
+    assert total == pytest.approx(len(set(map_ids) - {PALLET_TOWN}))
+
+
 # --- EpisodeReward and the anti-farming properties -----------------------
 
 
@@ -820,7 +860,7 @@ def _episode() -> EpisodeReward:
         [
             NewTile(weight=0.005), EventFlagGain(weight=2.0), BadgeGain(weight=5.0), LevelGain(weight=0.5),
             NewSpecies(weight=1.0), CenterHeal(weight=5.0), MoveGain(weight=0.01, scores=move_scores(SQUIRTLE_MOVES)),
-            HiddenEventGain(weight=0.1),
+            HiddenEventGain(weight=0.1), NewMap(weight=1.0),
         ]
     )  # fmt: skip
 
@@ -829,7 +869,7 @@ def test_episode_reward_reports_each_term_by_name():
     episode = _episode()
     episode.reset(frame())
     assert episode.step(frame(tile=(0, 1, 0))) == pytest.approx(
-        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0, "hidden": 0.0}
+        {"explore": 0.005, "event": 0.0, "badge": 0.0, "level": 0.0, "species": 0.0, "heal": 0.0, "moves": 0.0, "hidden": 0.0, "map": 0.0}
     )
 
 

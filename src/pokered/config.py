@@ -25,6 +25,7 @@ class EnvConfig:
     heal_weight: float = 5.0
     move_weight: float = 0.01
     hidden_weight: float = 0.1
+    map_weight: float = 1.0
     base_budget: int = 10_240
     budget_per_event: int = 2_048
     stagger_first_episode: bool = True
