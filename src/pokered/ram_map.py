@@ -12,6 +12,7 @@ See RAM_MAP_REPORT.md for how each address was verified and for training traps.
 Read after the intro has initialised RAM. Before that, money holds garbage and
 ``read_money`` raises ``ValueError``.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -42,6 +43,23 @@ LAST_MAP = 0xD365  # wLastMap: the outdoor map the player last left, which the n
 HIDDEN_EVENT_MATCH_BANK = 0x11
 HIDDEN_EVENT_MATCH_ADDRESS = 0x69F0
 HIDDEN_EVENT_INDEX = 0xCD3F  # wHiddenEventIndex
+# ReplaceTreeTileBlock (pret engine/overworld/cut.asm), called only after UsedCut accepts the tile in front of the
+# player, with that tile in wCutTile: CUT_TREE_TILE outdoors, CUT_GYM_TREE_TILE in a gym, or grass.
+CUT_HOOK_BANK = 0x03
+CUT_HOOK_ADDRESS = 0x709F
+CUT_TILE = 0xCD4D  # wCutTile
+CUT_TREE_TILE = 0x3D
+CUT_GYM_TREE_TILE = 0x50
+CUT_TREE_TILES: Final[frozenset[int]] = frozenset({CUT_TREE_TILE, CUT_GYM_TREE_TILE})
+CUT = 0x0F  # the move (pret constants/move_constants.asm)
+HM01 = 51  # machine number: TMs are 1-50, HM01 is the 51st bit of a species' machine flags
+NUM_MACHINES = 55
+# wSSAnne2FCurScript (pret ram/wram.asm, a byte no other script shares). scripts/SSAnne2F.asm: 1 starts the rival
+# fight, 2 waits for it to end, a loss resets it to 0, a win moves it to 3 (rival walks off) and then 4 for good.
+SS_ANNE_2F_SCRIPT = 0xD665
+SS_ANNE_RIVAL_BEATEN = 3
+# Master, Ultra, Great, Poke and Safari Balls (pret constants/item_constants.asm).
+BALL_ITEMS: Final[frozenset[int]] = frozenset({0x01, 0x02, 0x03, 0x04, 0x08})
 RESPAWN_MAP = 0xD719  # wLastBlackoutMap: where a blackout returns the player; set only by an accepted nurse heal
 # Every map with a healing nurse (pret constants/map_constants.asm): the nine city centers, Mt. Moon's, Rock Tunnel's,
 # and the Indigo Plateau lobby.
@@ -108,6 +126,8 @@ ROM_MEW_STATS = 0x425B
 ROM_TYPE_CHART = 0x3E474
 ROM_INTERNAL_TO_DEX = 0x41024
 BASE_STATS_SIZE = 28
+BASE_STATS_MACHINES = 20  # offset of the 7 bytes of TM/HM flags, lowest machine first (pret data/pokemon/base_stats)
+MACHINE_BYTES = 7
 MOVE_SIZE = 6
 NUM_MOVES = 165
 NUM_INTERNAL_IDS = 190
@@ -479,6 +499,7 @@ class RomTables:
         self._rom = rom
         self.moves = self._parse_moves()
         self.base_stats = self._parse_base_stats()
+        self._machines = self._parse_machines()
         self.type_chart = self._parse_type_chart()
 
     def _parse_moves(self) -> dict[int, Move]:
@@ -509,6 +530,27 @@ class RomTables:
             chart[(attacker, defender)] = multiplier / 10
             offset += 3
         unreachable("type chart has no terminator")
+
+    def _parse_machines(self) -> dict[int, bytes]:
+        """Each dex number's TM/HM flags, from the same records the base stats come from."""
+        offsets = [ROM_BASE_STATS + BASE_STATS_SIZE * i for i in range(150)] + [ROM_MEW_STATS]
+        machines = {}
+        for dex, offset in enumerate(offsets, start=1):
+            require(self._rom[offset] == dex, f"base stats misaligned for dex {dex}")
+            machines[dex] = self._rom[offset + BASE_STATS_MACHINES : offset + BASE_STATS_MACHINES + MACHINE_BYTES]
+        return machines
+
+    def learners(self, machine: int) -> frozenset[int]:
+        """Internal species IDs that can learn this TM or HM (1-50 are TMs, 51-55 HMs)."""
+        require(1 <= machine <= NUM_MACHINES, f"machine {machine} is not a TM or HM (1-{NUM_MACHINES})")
+        byte, bit = divmod(machine - 1, 8)
+        species = frozenset(
+            internal
+            for internal in range(1, NUM_INTERNAL_IDS + 1)
+            if (dex := self.dex_number(internal)) and self._machines[dex][byte] >> bit & 1
+        )
+        require(len(species) <= len(self._machines), "more learners than species")
+        return species
 
     def dex_number(self, internal_id: int) -> int:
         """Convert an internal species ID. Returns 0 for unused 'MissingNo.' slots."""

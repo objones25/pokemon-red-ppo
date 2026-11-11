@@ -50,6 +50,38 @@ class HiddenEventWatch:
         return found
 
 
+class CutWatch:
+    """Records each accepted Cut as (map, x, y, facing, tile): where the player stood and what was cut.
+
+    Cutting sets no flag, and the tree grows back when the map reloads, so only a hook on the cut itself sees it.
+    The hook survives ``load_state``.
+    """
+
+    def __init__(self, pyboy: PyBoy) -> None:
+        self._pyboy = pyboy
+        self._cuts: list[tuple[int, int, int, int, int]] = []
+        pyboy.hook_register(ram_map.CUT_HOOK_BANK, ram_map.CUT_HOOK_ADDRESS, self._record, None)
+
+    def _record(self, _context: object) -> None:  # nsp: ignore NSP001 GameFrame validates each cut
+        memory = self._pyboy.memory
+        self._cuts.append(
+            (
+                memory[ram_map.MAP_ID],
+                memory[ram_map.X_POS],
+                memory[ram_map.Y_POS],
+                memory[ram_map.FACING],
+                memory[ram_map.CUT_TILE],
+            )
+        )
+
+    def drain(self) -> tuple[tuple[int, int, int, int, int], ...]:
+        """The cuts since the last drain, oldest first."""
+        cuts = tuple(self._cuts)
+        self._cuts.clear()
+        require(not self._cuts, "draining must empty the watch")
+        return cuts
+
+
 def restore(pyboy: PyBoy, state: bytes, *, battle_animations: bool) -> None:
     """Load a current-format save, apply the battle-animation option, and settle the screen."""
     require(state, "start state must not be empty")

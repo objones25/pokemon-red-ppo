@@ -8,7 +8,7 @@ refund itself (UPSTREAM_FINDINGS.md D1).
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import ClassVar, Final, Protocol
 
@@ -27,6 +27,7 @@ GYM_ACE_LEVEL_BY_BADGES: Final[tuple[int, ...]] = (14, 21, 24, 29, 43, 43, 47, 5
 LEVEL_MARGIN_OVER_ACE: Final[int] = 5
 LEVEL_CAP_BY_BADGES: Final[tuple[int, ...]] = tuple(ace + LEVEL_MARGIN_OVER_ACE for ace in GYM_ACE_LEVEL_BY_BADGES)
 SPECIES_COUNT: Final[int] = 151
+BALL_CAP: Final[int] = 5
 
 
 def _require_weight(weight: float) -> None:
@@ -417,6 +418,98 @@ class NewMap:
             return 0.0
         self._seen.add(frame.map_id)
         return self.weight
+
+
+def ss_anne_rival_beaten(frame: GameFrame) -> bool:
+    """The S.S. Anne rival, the one story fight that sets no event flag (pret scripts/SSAnne2F.asm)."""
+    return frame.ss_anne_2f_script >= ram_map.SS_ANNE_RIVAL_BEATEN
+
+
+def knows_cut(frame: GameFrame) -> bool:
+    return ram_map.CUT in frame.party_moves
+
+
+def party_has_any(species: frozenset[int]) -> Callable[[GameFrame], bool]:
+    """Whether some party Pokemon is one of these species (internal IDs). A Pokemon in the PC can't be taught."""
+    require(species, "a species condition needs at least one species")
+    return lambda frame: any(member in species for member in frame.party_species)
+
+
+@dataclass(slots=True)
+class FirstTime:
+    """Pays once, the first step a condition holds. A condition already true at reset pays nothing."""
+
+    name: str
+    weight: float
+    condition: Callable[[GameFrame], bool]
+    signed: ClassVar[bool] = False
+    _met: bool = field(default=False, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+        require(self.name, "a term needs a name")
+
+    def reset(self, first: GameFrame) -> None:
+        self._met = self.condition(first)
+
+    def __call__(self, frame: GameFrame) -> float:
+        if self._met or not self.condition(frame):
+            return 0.0
+        self._met = True
+        return self.weight
+
+
+@dataclass(slots=True)
+class BallStock:
+    """Pays per ball for the most balls held at once, up to BALL_CAP: at a 33.6% catch rate (a Poke Ball on a full-HP
+    Oddish), five throws catch one 87% of the time. Throwing balls and buying them back pays nothing."""
+
+    weight: float
+    name: str = "balls"
+    signed: ClassVar[bool] = False
+    _most: int = field(default=0, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._most = min(first.poke_balls, BALL_CAP)
+
+    def __call__(self, frame: GameFrame) -> float:
+        held = min(frame.poke_balls, BALL_CAP)
+        gained = max(held - self._most, 0)
+        self._most += gained
+        require(self._most <= BALL_CAP, f"the most balls held, {self._most}, passed the cap")
+        return self.weight * gained
+
+
+def _trees(frame: GameFrame) -> set[tuple[int, int, int, int]]:
+    """Where the player stood and faced for each tree cut in this frame; grass is left out."""
+    return {(map_id, x, y, facing) for map_id, x, y, facing, tile in frame.cuts if tile in ram_map.CUT_TREE_TILES}
+
+
+@dataclass(slots=True)
+class TreeCut:
+    """Pays once per tree cut, told apart by where the player stood and faced; grass pays nothing. Trees grow back
+    when their map reloads, so cutting one again pays nothing."""
+
+    weight: float
+    name: str = "trees"
+    signed: ClassVar[bool] = False
+    _seen: set[tuple[int, int, int, int]] = field(default_factory=set, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_weight(self.weight)
+
+    def reset(self, first: GameFrame) -> None:
+        self._seen = _trees(first)
+        require(len(self._seen) <= len(first.cuts), "reset cannot see more trees than the frame holds")
+
+    def __call__(self, frame: GameFrame) -> float:
+        new = _trees(frame) - self._seen
+        self._seen |= new
+        require(new <= self._seen, "every tree paid must be remembered")
+        return self.weight * len(new)
 
 
 class EpisodeReward:

@@ -11,24 +11,30 @@ import numpy as np
 
 from pokered.buttons import BUTTONS, press
 from pokered.config import EnvConfig
-from pokered.emulator import HiddenEventWatch, open_emulator, restore
+from pokered.emulator import CutWatch, HiddenEventWatch, open_emulator, restore
 from pokered.frame import GameFrame, read_frame
 from pokered.milestones import MilestoneTracker
 from pokered.negative_space import require
 from pokered.observations import OBSERVATION_SHAPES, FrameStack, VisitedMap, downscale_screen, party_and_badges
-from pokered.ram_map import RomTables
+from pokered.ram_map import HM01, RomTables
 from pokered.rewards import (
     BadgeGain,
+    BallStock,
     CenterHeal,
     EpisodeReward,
     EventFlagGain,
+    FirstTime,
     HiddenEventGain,
     LevelGain,
     MoveGain,
     NewMap,
     NewSpecies,
     NewTile,
+    TreeCut,
+    knows_cut,
     move_scores,
+    party_has_any,
+    ss_anne_rival_beaten,
 )
 from pokered.telemetry import EpisodeDetail, EpisodeReport, EpisodeTelemetry, Snapshot
 
@@ -47,6 +53,8 @@ class PokemonRedEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(len(BUTTONS))
         self.pyboy = open_emulator(config.rom, fast_mode=config.fast_mode)
         self._hidden_events = HiddenEventWatch(self.pyboy)
+        self._cuts = CutWatch(self.pyboy)
+        tables = RomTables(config.rom)
         self._state = config.state.read_bytes()
         self._tiles = NewTile(config.tile_weight)
         self._events = EventFlagGain(config.event_weight)
@@ -58,9 +66,14 @@ class PokemonRedEnv(gym.Env):
                 LevelGain(config.level_weight),
                 NewSpecies(config.species_weight),
                 CenterHeal(config.heal_weight),
-                MoveGain(config.move_weight, move_scores(RomTables(config.rom).moves)),
+                MoveGain(config.move_weight, move_scores(tables.moves)),
                 HiddenEventGain(config.hidden_weight),
                 NewMap(config.map_weight),
+                FirstTime("ss_anne_rival", config.ss_anne_rival_weight, ss_anne_rival_beaten),
+                FirstTime("cut_learner", config.cut_learner_weight, party_has_any(tables.learners(HM01))),
+                FirstTime("knows_cut", config.knows_cut_weight, knows_cut),
+                BallStock(config.ball_weight),
+                TreeCut(config.tree_weight),
             ]
         )
         self._milestones = MilestoneTracker()
@@ -89,7 +102,7 @@ class PokemonRedEnv(gym.Env):
         require(0.0 < self._budget_fraction <= 1.0, f"budget fraction {self._budget_fraction} is outside (0, 1]")
         self._first_episode = False
         restore(self.pyboy, self._state, battle_animations=self._config.battle_animations)
-        frame = read_frame(self.pyboy.memory, hidden_events=self._hidden_events.drain())
+        frame = read_frame(self.pyboy.memory, hidden_events=self._hidden_events.drain(), cuts=self._cuts.drain())
         self._reward.reset(frame)
         self._milestones.reset(frame)
         self._telemetry.reset(frame)
@@ -104,7 +117,7 @@ class PokemonRedEnv(gym.Env):
     def step(self, action: int):
         require(self.action_space.contains(int(action)), f"action {action} is outside the action space")
         press(self.pyboy, int(action))
-        frame = read_frame(self.pyboy.memory, hidden_events=self._hidden_events.drain())
+        frame = read_frame(self.pyboy.memory, hidden_events=self._hidden_events.drain(), cuts=self._cuts.drain())
         terms = self._reward.step(frame)
         self._stack.push(self._screen())
         self._steps += 1

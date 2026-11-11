@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import replace
 
 import pytest
-from support import emulator, requires_rom
+from support import REPO, emulator, requires_rom
 
 from pokered.frame import EVENT_FLAG_BYTES, read_frame
-from pokered.ram_map import POKEDEX_BYTES
+from pokered.ram_map import POKEDEX_BYTES, SS_ANNE_RIVAL_BEATEN
 from pokered.start_state import START_STATE
 
 
@@ -133,3 +133,41 @@ def test_frame_rejects_a_hidden_event_that_does_not_fit_a_byte():
 @requires_rom
 def test_start_state_respawns_in_pallet_town():
     assert _start_frame().respawn_map == 0
+
+
+def test_frame_reads_the_ss_anne_2f_script_byte():
+    assert read_frame(_Ram({0xD665: 4})).ss_anne_2f_script == 4
+
+
+def test_frame_reads_the_species_of_party_members_only():
+    ram = _Ram({0xD163: 2, 0xD16B: 0xB3, 0xD16B + 44: 0x85, 0xD16B + 88: 0x09})
+    assert read_frame(ram).party_species == (0xB3, 0x85)
+
+
+def test_frame_counts_every_kind_of_ball_in_the_bag():
+    # bag: count, then (item, quantity) pairs: 3 Poke Balls, a Potion, 2 Great Balls
+    ram = _Ram({0xD31D: 3, 0xD31E: 0x04, 0xD31F: 3, 0xD320: 0x14, 0xD321: 1, 0xD322: 0x03, 0xD323: 2})
+    assert read_frame(ram).poke_balls == 5
+
+
+def test_frame_carries_the_cuts_made_since_the_last_step():
+    cut = (5, 15, 17, 0, 0x3D)
+    assert read_frame(_Ram(), cuts=(cut,)).cuts == (cut,)
+
+
+def test_frame_rejects_a_cut_that_does_not_fit_bytes():
+    with pytest.raises(AssertionError, match="cut"):
+        replace(read_frame(_Ram()), cuts=((5, 15, 256, 0, 0x3D),))
+
+
+@requires_rom
+def test_start_state_has_not_met_the_ss_anne_rival():
+    assert _start_frame().ss_anne_2f_script == 0
+
+
+@requires_rom
+def test_a_state_after_the_ss_anne_rival_win_reads_past_the_beaten_threshold():
+    with emulator() as pyboy:
+        with (REPO / "tests" / "states" / "ss_anne_rival_beaten.state").open("rb") as handle:
+            pyboy.load_state(handle)
+        assert read_frame(pyboy.memory).ss_anne_2f_script >= SS_ANNE_RIVAL_BEATEN

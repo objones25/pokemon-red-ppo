@@ -41,4 +41,4 @@ A stall is `stall_steps` (10,240) with no progress: no reward except new tiles (
 
 ## Milestones
 
-The first run tracked 13, with nothing between Misty and the S.S. Ticket, so it couldn't show whether the agent reached the rival. There are now 36, in the required order from `docs/evidence/events/EVENT_PROGRESSION.md`, including steps the game sets no flag for: `knows_cut` (the move in the party) and `has_silph_scope` (the item in the bag). The S.S. Anne rival has no flag either; find it as `RIVAL` in `tables/fights`.
+The first run tracked 13, with nothing between Misty and the S.S. Ticket, so it couldn't show whether the agent reached the rival. There are now 38, in the required order from `docs/evidence/events/EVENT_PROGRESSION.md`, including steps the game sets no flag for: `has_poke_ball` and `has_silph_scope` (the item in the bag), `knows_cut` (the move in the party) and `vermilion_gym` (the map, past the tree only Cut removes). The S.S. Anne rival has no flag either: `reward/ss_anne_rival` is the share of episodes that beat it times its weight, and `RIVAL2` in `tables/fights` shows the attempts.
