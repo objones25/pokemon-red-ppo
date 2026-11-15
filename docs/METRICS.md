@@ -1,7 +1,7 @@
 # What a run logs, and why
 
 Each metric has to answer a question someone will actually ask of a run. `ppo/*`, `perf/*` come every update. Everything
-else comes in a report every `report_every_steps` (5M by default, about 60 episodes at 81,000 steps each), and at the end of a run. Single-update
+else comes in a report every `report_every_steps` (5M by default; a median of 203 episodes per report in run8 and 161 in run9, from 80 to 458, fewer when episodes run longer), and at the end of a run. Single-update
 episode numbers were dropped because about four episodes finish per update, too few to read.
 
 ## Questions and where they're answered
@@ -15,7 +15,7 @@ episode numbers were dropped because about four episodes finish per update, too 
 | What did the game look like at that point? | `stuck/screens` in W&B; `stuck/<step>_<i>_stall_map<id>.png` and `.state` on the volume (the state reloads in PyBoy) |
 | Who does it lose to? | `tables/fights`: per trainer, or per map for wild fights: fights and losses per episode, loss rate, mean party max level; `progress/lost_fights_mean`, `progress/blackouts_mean` |
 | How strong is the party? | `progress/max_level_mean`, `progress/party_size_mean`, and `mean_party_max_level` per fight |
-| Which rewards drive it, and when? | `reward/<term>` per episode; `tables/reward_phases`: per term, per 10,240 steps of episode. `reward/moves` is the net of gains and costs, so it can be negative |
+| Which rewards drive it, and when? | `reward/<term>` per episode; `tables/reward_phases`: per term, per 10,240 steps of episode. `reward/moves` is the net of gains and costs, so it can be negative. A term appears only once some episode in the window has been paid by it: in run9, `reward/cut_learner`, `knows_cut` and `trees` never appear, because they never paid |
 | What does it press? | `actions/<button>`: share of presses |
 | Has exploration collapsed? | `ppo/entropy_overworld`, `ppo/entropy_battle`; `entropy` per map in `tables/maps` |
 | Did an update go wrong? | `ppo/approx_kl_max`, `ppo/approx_kl`, `ppo/clip_fraction`, `ppo/update_ratio`, `ppo/grad_norm` |
@@ -23,7 +23,7 @@ episode numbers were dropped because about four episodes finish per update, too 
 | Is the network running out of room? | `net/feature_rank`, `net/dead_fraction`, `net/feature_norm`, `ppo/weight_norm` |
 | Is the hardware keeping up? | `perf/steps_per_second`, `perf/update_seconds` |
 
-A stall is `stall_steps` (10,240) with no progress: no reward except new tiles (event, badge, level, species, heal or move gain). New tiles don't end one, because an agent can wander and keep collecting them. A stall ends the episode as terminated (worth nothing after it), and the share of the limit used is in the observation. So an episode has at most one stall, and its snapshot is the moment it ended; every episode also keeps one at its end.
+A stall is `stall_steps` (10,240) with no progress: no positive reward from a term in `PROGRESS_TERMS` (`pokered.telemetry`): event, badge, level, species, heal, moves, map, ss_anne_rival, cut_learner, knows_cut, balls or trees. New tiles and hidden events don't reset it. New tiles don't end one, because an agent can wander and keep collecting them. A stall ends the episode as terminated (worth nothing after it), and the share of the limit used is in the observation. So an episode has at most one stall, and its snapshot is the moment it ended; every episode also keeps one at its end.
 
 ## Removed from the first run's log
 
