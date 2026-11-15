@@ -21,6 +21,7 @@ dependencies = [
 [project.scripts]
 pokered-train = "pokered.train:main"
 pokered-evaluate = "pokered.evaluate:main"
+pokered-record = "pokered.record:main"
 pokered-delete-pod = "pokered.runpod:main"
 
 [dependency-groups]
